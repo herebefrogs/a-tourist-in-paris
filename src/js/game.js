@@ -174,26 +174,55 @@ onkeyup = function(e) {
   }
 };
 
-onmousedown = ontouchstart = onpointerdown = function(e) {
+// mobile support
+/*
+const INDEX_TAPX = 0
+const INDEX_TAPY = 1;
+const TOUCH = [0, 0];
+
+// TODO adding onmousedown/move/up triggers a MouseEvent and a PointerEvent
+// on platform that support both (duplicate event, could be filtered
+// with timestamp maybe? or listener only installed if supported?
+// pointer > mouse || touch)
+ontouchstart = onpointerdown = function(e) {
+  e.preventDefault();
   switch (screen) {
     case GAME_SCREEN:
-      console.log('pointer down', pointer_location(e));
+      const [x, y] = pointer_location(e);
+      TOUCH[INDEX_TAPX] = x;
+      TOUCH[INDEX_TAPY] = y;
       break;
   }
 };
 
-onmousemove = ontouchmove = onpointermove = function(e) {
+ontouchmove = onpointermove = function(e) {
+  e.preventDefault();
   switch (screen) {
     case GAME_SCREEN:
-      console.log('pointer move', pointer_location(e));
+      if (TOUCH[INDEX_TAPX] && TOUCH[INDEX_TAPY]) {
+        const [x, y] = pointer_location(e);
+        // TODO quit choppy motion, should add leeway for touch radius
+        player[INDEX_MOVEUP] = y < TOUCH[INDEX_TAPY] ? -1 : 0;
+        player[INDEX_MOVEDOWN] = y > TOUCH[INDEX_TAPY] ? 1 : 0;
+        player[INDEX_MOVELEFT] = x < TOUCH[INDEX_TAPX] ? -1 : 0;
+        player[INDEX_MOVERIGHT] = x > TOUCH[INDEX_TAPX] ? 1 : 0;
+        TOUCH[INDEX_TAPX] = x;
+        TOUCH[INDEX_TAPY] = y;
+      }
       break;
   }
 }
 
-onmouseup = ontouchend = onpointerup = function(e) {
+ontouchend = onpointerup = function(e) {
+  e.preventDefault();
   switch (screen) {
     case GAME_SCREEN:
-      console.log('pointer up', pointer_location(e));
+      TOUCH[INDEX_TAPX] = 0;
+      TOUCH[INDEX_TAPY] = 0;
+      player[INDEX_MOVEUP] = 0;
+      player[INDEX_MOVEDOWN] = 0;
+      player[INDEX_MOVELEFT] = 0;
+      player[INDEX_MOVERIGHT] = 0;
       break;
   }
 };
@@ -202,3 +231,4 @@ onmouseup = ontouchend = onpointerup = function(e) {
 function pointer_location(e) {
   return [e.pageX || e.changedTouches[0].pageX, e.pageY || e.changedTouches[0].pageY];
 };
+*/
