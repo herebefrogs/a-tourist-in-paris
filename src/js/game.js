@@ -6,8 +6,8 @@ const END_SCREEN = 1;
 let screen = GAME_SCREEN;
 
 const CTX = c.getContext('2d');
-const WIDTH = 640;
-const HEIGHT = 480;
+const WIDTH = 100;
+const HEIGHT = 100;
 const BUFFER = c.cloneNode();
 const BUFFER_CTX = BUFFER.getContext('2d');
 
@@ -18,13 +18,20 @@ let running = true;
 
 const INDEX_X = 0
 const INDEX_Y = 1;
-const INDEX_MOVEUP = 2;
-const INDEX_MOVEDOWN = 3;
-const INDEX_MOVELEFT = 4
-const INDEX_MOVERIGHT = 5;
-const INDEX_SPEED = 6;
+const INDEX_W = 2;
+const INDEX_H = 3;
+const INDEX_MOVEUP = 4;
+const INDEX_MOVEDOWN = 5;
+const INDEX_MOVELEFT = 6
+const INDEX_MOVERIGHT = 7;
+const INDEX_SPEED = 8;
 const PLAYER_SPEED = 100; // px/s
-let player = [0, 0, 0, 0, 0, 0, PLAYER_SPEED];
+let player = [0, 0, 10, 10, 0, 0, 0, 0, PLAYER_SPEED];
+let entities = [
+  [40, 40, 20, 20],
+  [40, 60, 20, 20],
+  [60, 40, 20, 20]
+];
 
 function loop() {
   if (running) {
@@ -61,6 +68,9 @@ function render() {
       BUFFER_CTX.fillStyle = 'white';
       BUFFER_CTX.fillRect(0, 0, WIDTH, HEIGHT);
       renderEntity(player);
+      for (let entity of entities) {
+        renderEntity(entity);
+      }
       break;
   }
 
@@ -68,14 +78,85 @@ function render() {
 };
 
 function renderEntity(entity) {
-  BUFFER_CTX.fillStyle = 'red';
-  BUFFER_CTX.fillRect(Math.round(entity[INDEX_X]), Math.round(entity[INDEX_Y]), 44, 44);
+  BUFFER_CTX.fillStyle = entity === player ? 'blue' : 'red';
+  BUFFER_CTX.fillRect(Math.round(entity[INDEX_X]), Math.round(entity[INDEX_Y]),
+                      entity[INDEX_W], entity[INDEX_H]);
 }
 
 function setPlayerPosition(elapsedTime) {
   const distance = elapsedTime * player[INDEX_SPEED];
   player[INDEX_X] += (player[INDEX_MOVELEFT] + player[INDEX_MOVERIGHT]) * distance;
   player[INDEX_Y] += (player[INDEX_MOVEUP] + player[INDEX_MOVEDOWN]) * distance;
+
+  for (let entity of entities) {
+    const player_right_x = player[INDEX_X] + player[INDEX_W];
+    const player_bottom_y = player[INDEX_Y] + player[INDEX_H];
+    const entity_right_x = entity[INDEX_X] + entity[INDEX_W];
+    const entity_bottom_y = entity[INDEX_Y] + entity[INDEX_H];
+
+    // AABB collision
+    if (player[INDEX_X] < entity_right_x &&
+        player_right_x > entity[INDEX_X] &&
+        player[INDEX_Y] < entity_bottom_y &&
+        player_bottom_y > entity[INDEX_Y]) {
+
+      const delta_right_x = player_right_x - entity[INDEX_X];
+      const delta_bottom_y = player_bottom_y - entity[INDEX_Y];
+      const delta_left_x = entity_right_x - player[INDEX_X];
+      const delta_top_y = entity_bottom_y - player[INDEX_Y];
+
+      // AABB collision response (homegrown wall sliding, not physically correct
+      // because just pushing along one axis by the distance overlapped)
+      if (player[INDEX_MOVERIGHT] && player[INDEX_MOVEDOWN]) {
+        if (delta_right_x < delta_bottom_y) {
+          // collided right side first
+          player[INDEX_X] -= delta_right_x;
+        } else {
+          // collided top side first
+          player[INDEX_Y] -= delta_bottom_y;
+        }
+      }
+      else if (player[INDEX_MOVERIGHT] && player[INDEX_MOVEUP]) {
+        if (delta_right_x < delta_top_y) {
+          // collided righ side first
+          player[INDEX_X] -= delta_right_x;
+        } else {
+          // collided bottom side first
+          player[INDEX_Y] += delta_top_y;
+        }
+      }
+      else if (player[INDEX_MOVERIGHT]) {
+        player[INDEX_X] -= delta_right_x;
+      }
+      else if (player[INDEX_MOVELEFT] && player[INDEX_MOVEDOWN]) {
+        if (delta_left_x < delta_bottom_y) {
+          // collided with left side first
+          player[INDEX_X] += delta_left_x;
+        } else {
+          // collided with top side first
+          player[INDEX_Y] -= delta_bottom_y;
+        }
+      }
+      else if (player[INDEX_MOVELEFT] && player[INDEX_MOVEUP]) {
+        if (delta_left_x < delta_top_y) {
+          // collided with left side first
+          player[INDEX_X] += delta_left_x;
+        } else {
+          // collided with bottom side first
+          player[INDEX_Y] += delta_top_y;
+        }
+      }
+      else if (player[INDEX_MOVELEFT]) {
+        player[INDEX_X] += delta_left_x;
+      }
+      else if (player[INDEX_MOVEDOWN]) {
+        player[INDEX_Y] -= delta_bottom_y;
+      }
+      else if (player[INDEX_MOVEUP]) {
+        player[INDEX_Y] += delta_top_y;
+      }
+    }
+  }
 };
 
 function update(elapsedTime) {
