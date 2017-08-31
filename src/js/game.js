@@ -1,3 +1,5 @@
+import {rand, choice, randRGB} from './utils';
+
 // globals
 
 const TITLE_SCREEN = 0;
@@ -5,9 +7,15 @@ const GAME_SCREEN = 1;
 const END_SCREEN = 1;
 let screen = GAME_SCREEN;
 
+const PLAYER_SIZE = 10; // in px
+const BLOCK_SIZE = 20; // in px (size of a building)
+const PLATE_SIZE = BLOCK_SIZE * 3; // in px (3x3 blocks in a plate)
+const MAP_WIDTH = 10; // in plates
+const MAP_HEIGHT = 8; // in plates
+
 const CTX = c.getContext('2d');
-const WIDTH = 100;
-const HEIGHT = 100;
+const WIDTH = MAP_WIDTH * PLATE_SIZE;
+const HEIGHT = MAP_HEIGHT * PLATE_SIZE;
 const BUFFER = c.cloneNode();
 const BUFFER_CTX = BUFFER.getContext('2d');
 
@@ -26,12 +34,91 @@ const INDEX_MOVELEFT = 6
 const INDEX_MOVERIGHT = 7;
 const INDEX_SPEED = 8;
 const PLAYER_SPEED = 100; // px/s
-let player = [0, 0, 10, 10, 0, 0, 0, 0, PLAYER_SPEED];
-let entities = [
-  [40, 40, 20, 20],
-  [40, 60, 20, 20],
-  [60, 40, 20, 20]
-];
+const ROAD_TOP = 1;
+const ROAD_RIGHT = 2;
+const ROAD_BOTTOM = 4;
+const ROAD_LEFT = 8;
+let player = [BLOCK_SIZE, BLOCK_SIZE, PLAYER_SIZE, PLAYER_SIZE, 0, 0, 0, 0, PLAYER_SPEED];
+let entities = [];
+let map;
+
+function generateMap() {
+  const map = [];
+  let plate;
+  for (let i = 0; i < MAP_WIDTH * MAP_HEIGHT; i++) {
+    if (i === 0) {
+      // turn in top left corner
+      plate = ROAD_RIGHT + ROAD_BOTTOM;
+    }
+    else if (i === MAP_WIDTH - 1) {
+      // turn in top right corner
+      plate = ROAD_LEFT + ROAD_BOTTOM;
+    }
+    else if (i === MAP_WIDTH * (MAP_HEIGHT - 1)) {
+      // turn in bottom left corner
+      plate = ROAD_LEFT + ROAD_TOP;
+    }
+    else if (i === (MAP_WIDTH * MAP_HEIGHT) - 1) {
+      // turn in bottom right corner
+      plate = ROAD_RIGHT + ROAD_TOP;
+    }
+    else if (i < MAP_WIDTH - 1) {
+      // horizontal road or T road at the top of the map
+      plate = choice([ROAD_LEFT + ROAD_RIGHT, ROAD_LEFT + ROAD_BOTTOM + ROAD_RIGHT]);
+    }
+    else if (MAP_WIDTH * (MAP_HEIGHT - 1) < i) {
+      // horizontal road or upside down T road at the bottom of the map
+      plate = choice([ROAD_LEFT + ROAD_RIGHT, ROAD_LEFT + ROAD_TOP + ROAD_RIGHT]);
+    }
+    else if (!(i % MAP_WIDTH)) {
+      // vertical road or |- road at the left of the map
+      plate = choice([ROAD_TOP + ROAD_BOTTOM, ROAD_TOP + ROAD_RIGHT + ROAD_BOTTOM]);
+    }
+    else if (!(i % (MAP_WIDTH - 1))) {
+      // vertical road or -| road at the right of the map
+      plate = choice([ROAD_TOP + ROAD_BOTTOM, ROAD_TOP + ROAD_LEFT + ROAD_BOTTOM]);
+    }
+    else {
+      // TODO must ensure it matches with the surrounding plates
+      plate = choice([ROAD_LEFT + ROAD_TOP + ROAD_RIGHT + ROAD_BOTTOM,
+               ROAD_TOP + ROAD_LEFT + ROAD_BOTTOM,
+               ROAD_TOP + ROAD_RIGHT + ROAD_BOTTOM,
+               ROAD_LEFT + ROAD_TOP + ROAD_RIGHT,
+               ROAD_LEFT + ROAD_BOTTOM + ROAD_RIGHT,
+               ROAD_TOP + ROAD_BOTTOM,
+               ROAD_LEFT + ROAD_RIGHT]);
+    }
+    map[i] = plate;
+  }
+
+  return map;
+}
+
+function generateEntities() {
+  const entities = [];
+  for (let i = 0; i < MAP_WIDTH * MAP_HEIGHT; i++) {
+    const x = i % MAP_WIDTH;
+    const y = (i - x) / MAP_WIDTH;
+    // corner blocks are on all plates
+    entities.push([x*PLATE_SIZE, y*PLATE_SIZE, BLOCK_SIZE, BLOCK_SIZE]);
+    entities.push([x*PLATE_SIZE + 2*BLOCK_SIZE, y*PLATE_SIZE, BLOCK_SIZE, BLOCK_SIZE]);
+    entities.push([x*PLATE_SIZE, y*PLATE_SIZE + 2*BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE]);
+    entities.push([x*PLATE_SIZE + 2*BLOCK_SIZE, y*PLATE_SIZE + 2*BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE]);
+    if (!(map[i] & ROAD_TOP)) {
+      entities.push([x * PLATE_SIZE + BLOCK_SIZE, y*PLATE_SIZE, BLOCK_SIZE, BLOCK_SIZE]);
+    }
+    if (!(map[i] & ROAD_LEFT)) {
+      entities.push([x*PLATE_SIZE, y*PLATE_SIZE + BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE]);
+    }
+    if (!(map[i] & ROAD_BOTTOM)) {
+      entities.push([x*PLATE_SIZE + 2*BLOCK_SIZE, y*PLATE_SIZE + BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE]);
+    }
+    if (!(map[i] & ROAD_RIGHT)) {
+      entities.push([x*PLATE_SIZE + 2*BLOCK_SIZE, y*PLATE_SIZE + BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE]);
+    }
+  }
+  return entities
+}
 
 function loop() {
   if (running) {
@@ -78,7 +165,7 @@ function render() {
 };
 
 function renderEntity(entity) {
-  BUFFER_CTX.fillStyle = entity === player ? 'blue' : 'red';
+  BUFFER_CTX.fillStyle = entity === player ? 'blue' : randRGB();
   BUFFER_CTX.fillRect(Math.round(entity[INDEX_X]), Math.round(entity[INDEX_Y]),
                       entity[INDEX_W], entity[INDEX_H]);
 }
@@ -162,6 +249,12 @@ function setPlayerPosition(elapsedTime) {
 function update(elapsedTime) {
   switch (screen) {
     case GAME_SCREEN:
+      // TODO better done on the title screen or loadding screen
+      if (!map) {
+        map = generateMap();
+        // TODO transcribe the map into entities
+        entities = generateEntities();
+      }
       setPlayerPosition(elapsedTime);
       break;
   }

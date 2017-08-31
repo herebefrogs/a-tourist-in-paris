@@ -71,6 +71,7 @@ gulp.task('jsmin', ['clean'], function() {
     .pipe(uglify())
     // drop strict mode to allow the use of onresize=onrotate=... but that throws off the sourcemaps by 2 lines
     .pipe(replace('"use strict";', ''))
+    .pipe(replace("'use strict';", ''))
     .pipe(sourcemaps.write('.'))
     .pipe(gulp.dest('./build/js/'));
 });
