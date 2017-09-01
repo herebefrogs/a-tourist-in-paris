@@ -28,19 +28,20 @@ const INDEX_X = 0
 const INDEX_Y = 1;
 const INDEX_W = 2;
 const INDEX_H = 3;
-const INDEX_MOVEUP = 4;
-const INDEX_MOVEDOWN = 5;
-const INDEX_MOVELEFT = 6
-const INDEX_MOVERIGHT = 7;
-const INDEX_SPEED = 8;
+const INDEX_COLOR = 4;
+const INDEX_MOVEUP = 5;
+const INDEX_MOVEDOWN = 6;
+const INDEX_MOVELEFT = 7
+const INDEX_MOVERIGHT = 8;
+const INDEX_SPEED = 9;
 const PLAYER_SPEED = 100; // px/s
 const ROAD_TOP = 1;
 const ROAD_RIGHT = 2;
 const ROAD_BOTTOM = 4;
 const ROAD_LEFT = 8;
-let player = [BLOCK_SIZE, BLOCK_SIZE, PLAYER_SIZE, PLAYER_SIZE, 0, 0, 0, 0, PLAYER_SPEED];
+let player = [BLOCK_SIZE, BLOCK_SIZE, PLAYER_SIZE, PLAYER_SIZE, 'blue', 0, 0, 0, 0, PLAYER_SPEED];
 let entities = [];
-let map;
+let map = [];
 
 function generateMap() {
   const map = [];
@@ -56,26 +57,26 @@ function generateMap() {
     }
     else if (i === MAP_WIDTH * (MAP_HEIGHT - 1)) {
       // turn in bottom left corner
-      plate = ROAD_LEFT + ROAD_TOP;
+      plate = ROAD_RIGHT + ROAD_TOP;
     }
     else if (i === (MAP_WIDTH * MAP_HEIGHT) - 1) {
       // turn in bottom right corner
-      plate = ROAD_RIGHT + ROAD_TOP;
+      plate = ROAD_LEFT + ROAD_TOP;
     }
     else if (i < MAP_WIDTH - 1) {
-      // horizontal road or T road at the top of the map
+      // horizontal road or T road at the top edge of the map
       plate = choice([ROAD_LEFT + ROAD_RIGHT, ROAD_LEFT + ROAD_BOTTOM + ROAD_RIGHT]);
     }
     else if (MAP_WIDTH * (MAP_HEIGHT - 1) < i) {
-      // horizontal road or upside down T road at the bottom of the map
+      // horizontal road or upside down T road at the bottom edge of the map
       plate = choice([ROAD_LEFT + ROAD_RIGHT, ROAD_LEFT + ROAD_TOP + ROAD_RIGHT]);
     }
     else if (!(i % MAP_WIDTH)) {
-      // vertical road or |- road at the left of the map
+      // vertical road or |- road at the left edge of the map
       plate = choice([ROAD_TOP + ROAD_BOTTOM, ROAD_TOP + ROAD_RIGHT + ROAD_BOTTOM]);
     }
-    else if (!(i % (MAP_WIDTH - 1))) {
-      // vertical road or -| road at the right of the map
+    else if ((i % MAP_WIDTH) === (MAP_WIDTH - 1)) {
+      // vertical road or -| road at the right edge of the map
       plate = choice([ROAD_TOP + ROAD_BOTTOM, ROAD_TOP + ROAD_LEFT + ROAD_BOTTOM]);
     }
     else {
@@ -94,27 +95,31 @@ function generateMap() {
   return map;
 }
 
+function createEntity(entities, x, y, w, h) {
+  entities.push([x, y, w, h, randRGB()]);
+}
+
 function generateEntities() {
   const entities = [];
   for (let i = 0; i < MAP_WIDTH * MAP_HEIGHT; i++) {
     const x = i % MAP_WIDTH;
     const y = (i - x) / MAP_WIDTH;
     // corner blocks are on all plates
-    entities.push([x*PLATE_SIZE, y*PLATE_SIZE, BLOCK_SIZE, BLOCK_SIZE]);
-    entities.push([x*PLATE_SIZE + 2*BLOCK_SIZE, y*PLATE_SIZE, BLOCK_SIZE, BLOCK_SIZE]);
-    entities.push([x*PLATE_SIZE, y*PLATE_SIZE + 2*BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE]);
-    entities.push([x*PLATE_SIZE + 2*BLOCK_SIZE, y*PLATE_SIZE + 2*BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE]);
+    entities.push([x*PLATE_SIZE, y*PLATE_SIZE, BLOCK_SIZE, BLOCK_SIZE, randRGB()]);
+    entities.push([x*PLATE_SIZE + 2*BLOCK_SIZE, y*PLATE_SIZE, BLOCK_SIZE, BLOCK_SIZE, randRGB()]);
+    entities.push([x*PLATE_SIZE, y*PLATE_SIZE + 2*BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, randRGB()]);
+    entities.push([x*PLATE_SIZE + 2*BLOCK_SIZE, y*PLATE_SIZE + 2*BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, randRGB()]);
     if (!(map[i] & ROAD_TOP)) {
-      entities.push([x * PLATE_SIZE + BLOCK_SIZE, y*PLATE_SIZE, BLOCK_SIZE, BLOCK_SIZE]);
+      entities.push([x * PLATE_SIZE + BLOCK_SIZE, y*PLATE_SIZE, BLOCK_SIZE, BLOCK_SIZE, randRGB()]);
     }
     if (!(map[i] & ROAD_LEFT)) {
-      entities.push([x*PLATE_SIZE, y*PLATE_SIZE + BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE]);
+      entities.push([x*PLATE_SIZE, y*PLATE_SIZE + BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, randRGB()]);
     }
     if (!(map[i] & ROAD_BOTTOM)) {
-      entities.push([x*PLATE_SIZE + 2*BLOCK_SIZE, y*PLATE_SIZE + BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE]);
+      entities.push([x*PLATE_SIZE + BLOCK_SIZE, y*PLATE_SIZE + 2*BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, randRGB()]);
     }
     if (!(map[i] & ROAD_RIGHT)) {
-      entities.push([x*PLATE_SIZE + 2*BLOCK_SIZE, y*PLATE_SIZE + BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE]);
+      entities.push([x*PLATE_SIZE + 2*BLOCK_SIZE, y*PLATE_SIZE + BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, randRGB()]);
     }
   }
   return entities
@@ -165,7 +170,7 @@ function render() {
 };
 
 function renderEntity(entity) {
-  BUFFER_CTX.fillStyle = entity === player ? 'blue' : randRGB();
+  BUFFER_CTX.fillStyle = entity[INDEX_COLOR];
   BUFFER_CTX.fillRect(Math.round(entity[INDEX_X]), Math.round(entity[INDEX_Y]),
                       entity[INDEX_W], entity[INDEX_H]);
 }
@@ -250,7 +255,7 @@ function update(elapsedTime) {
   switch (screen) {
     case GAME_SCREEN:
       // TODO better done on the title screen or loadding screen
-      if (!map) {
+      if (!map.length) {
         map = generateMap();
         // TODO transcribe the map into entities
         entities = generateEntities();
