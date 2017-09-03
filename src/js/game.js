@@ -39,12 +39,13 @@ const ROAD_TOP = 1;
 const ROAD_RIGHT = 2;
 const ROAD_BOTTOM = 4;
 const ROAD_LEFT = 8;
+const PLATE_MONUMENT = 31;
 let player = [BLOCK_SIZE, BLOCK_SIZE, PLAYER_SIZE, PLAYER_SIZE, 'blue', 0, 0, 0, 0, PLAYER_SPEED];
 let entities = [];
 let map = [];
 
 function generateMap() {
-  const map = [];
+  map = [];
   let plate;
   for (let i = 0; i < MAP_WIDTH * MAP_HEIGHT; i++) {
     if (i === 0) {
@@ -80,30 +81,28 @@ function generateMap() {
       plate = choice([ROAD_TOP + ROAD_BOTTOM, ROAD_TOP + ROAD_LEFT + ROAD_BOTTOM]);
     }
     else {
-      // TODO must ensure it matches with the surrounding plates
       plate = choice([ROAD_LEFT + ROAD_TOP + ROAD_RIGHT + ROAD_BOTTOM,
-               ROAD_TOP + ROAD_LEFT + ROAD_BOTTOM,
-               ROAD_TOP + ROAD_RIGHT + ROAD_BOTTOM,
-               ROAD_LEFT + ROAD_TOP + ROAD_RIGHT,
-               ROAD_LEFT + ROAD_BOTTOM + ROAD_RIGHT,
-               ROAD_TOP + ROAD_BOTTOM,
-               ROAD_LEFT + ROAD_RIGHT]);
+        ROAD_TOP + ROAD_LEFT + ROAD_BOTTOM,
+        ROAD_TOP + ROAD_RIGHT + ROAD_BOTTOM,
+        ROAD_LEFT + ROAD_TOP + ROAD_RIGHT,
+        ROAD_LEFT + ROAD_BOTTOM + ROAD_RIGHT,
+        ROAD_TOP + ROAD_BOTTOM,
+        ROAD_LEFT + ROAD_RIGHT,
+        PLATE_MONUMENT]);
     }
     map[i] = plate;
   }
-
-  return map;
-}
-
-function createEntity(entities, x, y, w, h) {
-  entities.push([x, y, w, h, randRGB()]);
 }
 
 function generateEntities() {
-  const entities = [];
+  entities = [];
   for (let i = 0; i < MAP_WIDTH * MAP_HEIGHT; i++) {
     const x = i % MAP_WIDTH;
     const y = (i - x) / MAP_WIDTH;
+    if (map[i] === PLATE_MONUMENT) {
+      entities.push([x*PLATE_SIZE + BLOCK_SIZE, y*PLATE_SIZE + BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, 'red']);
+      continue;
+    }
     // corner blocks are on all plates
     entities.push([x*PLATE_SIZE, y*PLATE_SIZE, BLOCK_SIZE, BLOCK_SIZE, randRGB()]);
     entities.push([x*PLATE_SIZE + 2*BLOCK_SIZE, y*PLATE_SIZE, BLOCK_SIZE, BLOCK_SIZE, randRGB()]);
@@ -122,7 +121,6 @@ function generateEntities() {
       entities.push([x*PLATE_SIZE + 2*BLOCK_SIZE, y*PLATE_SIZE + BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, randRGB()]);
     }
   }
-  return entities
 }
 
 function loop() {
@@ -159,6 +157,8 @@ function render() {
     case GAME_SCREEN:
       BUFFER_CTX.fillStyle = 'white';
       BUFFER_CTX.fillRect(0, 0, WIDTH, HEIGHT);
+
+      player[INDEX_COLOR] = randRGB();
       renderEntity(player);
       for (let entity of entities) {
         renderEntity(entity);
@@ -256,9 +256,9 @@ function update(elapsedTime) {
     case GAME_SCREEN:
       // TODO better done on the title screen or loadding screen
       if (!map.length) {
-        map = generateMap();
+        generateMap();
         // TODO transcribe the map into entities
-        entities = generateEntities();
+        generateEntities();
       }
       setPlayerPosition(elapsedTime);
       break;
