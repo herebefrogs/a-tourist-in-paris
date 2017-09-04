@@ -176,7 +176,7 @@ function render() {
 
       renderText('a Tourist in Paris', WIDTH / 2, 128, '64px Arial');
       if (Math.floor(currentTime/1000)%2) {
-        renderText('press N to start', WIDTH / 2, HEIGHT * 2 / 3, '24px Arial');
+        renderText('press N or tap screen to start', WIDTH / 2, HEIGHT * 2 / 3, '24px Arial');
       }
       renderText('proudly made in Canada', WIDTH / 2, HEIGHT - 2.5*BLOCK_SIZE, '24px Arial');
       renderText('by Jerome Lecomte for JS13KGAMES 2017', WIDTH / 2, HEIGHT - BLOCK_SIZE, '24px Arial');
@@ -188,10 +188,10 @@ function render() {
       renderText('Tourist: person geographically and culturally', 2*BLOCK_SIZE, 2*BLOCK_SIZE, '24px Arial', 'left');
       renderText('lost, trying to cross iconic sightseeings from his', 2*BLOCK_SIZE, 4*BLOCK_SIZE, '24px Arial', 'left');
       renderText('bucket list before his tour bus departs.', 2*BLOCK_SIZE, 6*BLOCK_SIZE, '24px Arial', 'left');
-      renderText('Arrow keys or WASD/ZQSD to move around.', 2*BLOCK_SIZE, 10*BLOCK_SIZE, '24px Arial', 'left');
+      renderText('Arrow keys, WASD/ZQSD or swipe screen to move.', 2*BLOCK_SIZE, 10*BLOCK_SIZE, '24px Arial', 'left');
       renderText('Touch all red squares before time runs out.', 2*BLOCK_SIZE, 12*BLOCK_SIZE, '24px Arial', 'left');
       if (Math.floor(currentTime/1000)%2) {
-        renderText('Press any key.', 2*BLOCK_SIZE, 16*BLOCK_SIZE, '24px Arial', 'left');
+        renderText('Press any key or tap screen.', 2*BLOCK_SIZE, 16*BLOCK_SIZE, '24px Arial', 'left');
       }
       break;
     case GAME_SCREEN:
@@ -220,8 +220,8 @@ function render() {
 
       renderText(`You ${winGame ? 'won' : 'lost'}!`, WIDTH / 2, 128);
       renderText(`${nbMonumentsSnapped} out of ${nbMonuments} sightseeings`, WIDTH / 2, HEIGHT / 2);
-      renderText('press N to start new level', WIDTH / 2, HEIGHT * 2 / 3, '24px Arial');
-      renderText('press R to retry same level', WIDTH / 2, HEIGHT * 2 / 3 + 2*BLOCK_SIZE, '24px Arial');
+      renderText('press R to retry same level', WIDTH / 2, HEIGHT * 2 / 3, '24px Arial');
+      renderText('press N or tap screen to start new level', WIDTH / 2, HEIGHT * 2 / 3 + 2*BLOCK_SIZE, '24px Arial');
       renderText('press T to share your score on Twitter', WIDTH / 2, HEIGHT * 2 / 3 + 4*BLOCK_SIZE, '24px Arial');
       break;
   }
@@ -453,6 +453,8 @@ onresize = onrotate = function() {
   [ CTX, BG_CTX, BUFFER_CTX ].forEach(function(ctx) {
     ctx.mozImageSmoothingEnabled = ctx.msImageSmoothingEnabled = ctx.imageSmoothingEnabled = false;
   });
+  centerX = innerWidth / 2;
+  centerY = innerHeight / 2;
 };
 
 // input handlers
@@ -541,22 +543,23 @@ onkeyup = function(e) {
 };
 
 // mobile support
-/*
 const INDEX_TAPX = 0
 const INDEX_TAPY = 1;
-const TOUCH = [0, 0];
+let tapped = false;
+let centerX;
+let centerY;
 
-// TODO adding onmousedown/move/up triggers a MouseEvent and a PointerEvent
+// adding onmousedown/move/up triggers a MouseEvent and a PointerEvent
 // on platform that support both (duplicate event, could be filtered
 // with timestamp maybe? or listener only installed if supported?
 // pointer > mouse || touch)
 ontouchstart = onpointerdown = function(e) {
   e.preventDefault();
+  tapped = true;
   switch (screen) {
     case GAME_SCREEN:
       const [x, y] = pointer_location(e);
-      TOUCH[INDEX_TAPX] = x;
-      TOUCH[INDEX_TAPY] = y;
+      tapToKeyInput(x, y);
       break;
   }
 };
@@ -565,15 +568,9 @@ ontouchmove = onpointermove = function(e) {
   e.preventDefault();
   switch (screen) {
     case GAME_SCREEN:
-      if (TOUCH[INDEX_TAPX] && TOUCH[INDEX_TAPY]) {
+      if (tapped) {
         const [x, y] = pointer_location(e);
-        // TODO quit choppy motion, should add leeway for touch radius
-        player[INDEX_MOVEUP] = y < TOUCH[INDEX_TAPY] ? -1 : 0;
-        player[INDEX_MOVEDOWN] = y > TOUCH[INDEX_TAPY] ? 1 : 0;
-        player[INDEX_MOVELEFT] = x < TOUCH[INDEX_TAPX] ? -1 : 0;
-        player[INDEX_MOVERIGHT] = x > TOUCH[INDEX_TAPX] ? 1 : 0;
-        TOUCH[INDEX_TAPX] = x;
-        TOUCH[INDEX_TAPY] = y;
+        tapToKeyInput(x, y);
       }
       break;
   }
@@ -581,10 +578,16 @@ ontouchmove = onpointermove = function(e) {
 
 ontouchend = onpointerup = function(e) {
   e.preventDefault();
+  tapped = false;
   switch (screen) {
+    case TITLE_SCREEN:
+      screen = GOAL_SCREEN;
+      break;
+    case GOAL_SCREEN:
+    case END_SCREEN:
+      startNewGame = true;
+      break;
     case GAME_SCREEN:
-      TOUCH[INDEX_TAPX] = 0;
-      TOUCH[INDEX_TAPY] = 0;
       player[INDEX_MOVEUP] = 0;
       player[INDEX_MOVEDOWN] = 0;
       player[INDEX_MOVELEFT] = 0;
@@ -597,4 +600,12 @@ ontouchend = onpointerup = function(e) {
 function pointer_location(e) {
   return [e.pageX || e.changedTouches[0].pageX, e.pageY || e.changedTouches[0].pageY];
 };
-*/
+
+function tapToKeyInput(x, y) {
+  let dx = (x - centerX) / centerX;
+  let dy = (y - centerY) / centerY;
+  player[INDEX_MOVELEFT] = Math.min(dx, 0);
+  player[INDEX_MOVERIGHT] = Math.max(dx, 0);
+  player[INDEX_MOVEUP] = Math.min(dy, 0);
+  player[INDEX_MOVEDOWN] = Math.max(dy, 0);
+}
