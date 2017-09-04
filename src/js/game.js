@@ -4,7 +4,7 @@ import {rand, choice, randRGB} from './utils';
 
 const TITLE_SCREEN = 0;
 const GAME_SCREEN = 1;
-const END_SCREEN = 1;
+const END_SCREEN = 2;
 let screen = GAME_SCREEN;
 
 const PLAYER_SIZE = 10; // in px
@@ -46,6 +46,7 @@ let entities = [];
 let map = [];
 let nbMonuments = 0;
 let nbMonumentsSnapped = 0;
+let winGame = false;
 
 function generateMap() {
   map = [];
@@ -167,6 +168,15 @@ function render() {
         renderEntity(entity);
       }
       break;
+    case END_SCREEN:
+      BUFFER_CTX.fillStyle = 'white';
+      BUFFER_CTX.fillRect(0, 0, WIDTH, HEIGHT);
+
+      BUFFER_CTX.fillStyle = 'black';
+      BUFFER_CTX.font = '48px Arial';
+      BUFFER_CTX.textAlign = 'center';
+      BUFFER_CTX.fillText(`you ${winGame ? 'win' : 'loose'}!`, WIDTH / 2, HEIGHT / 2);
+      break;
   }
 
   blit();
@@ -266,6 +276,13 @@ function checkMonument(entity) {
   }
 }
 
+function checkVictoryAndGameOver() {
+  if (nbMonumentsSnapped === nbMonuments) {
+    screen = END_SCREEN;
+    winGame = true;
+  }
+}
+
 function update(elapsedTime) {
   switch (screen) {
     case GAME_SCREEN:
@@ -276,6 +293,7 @@ function update(elapsedTime) {
         nbMonuments = map.reduce(function(sum, plate) {
           return sum + (plate === PLATE_MONUMENT ? 1 : 0);
         }, 0);
+        winGame = false;
       }
       setPlayerPosition(elapsedTime);
       for (let entity of entities) {
@@ -285,6 +303,7 @@ function update(elapsedTime) {
           checkMonument(entity);
         }
       }
+      checkVictoryAndGameOver();
       break;
   }
 };
