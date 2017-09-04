@@ -5,7 +5,7 @@ import {rand, choice, randRGB} from './utils';
 const TITLE_SCREEN = 0;
 const GAME_SCREEN = 1;
 const END_SCREEN = 2;
-let screen = GAME_SCREEN;
+let screen = TITLE_SCREEN;
 
 const PLAYER_SIZE = 10; // in px
 const BLOCK_SIZE = 20; // in px (size of a building)
@@ -46,6 +46,7 @@ let entities = [];
 let map = [];
 let nbMonuments = 0;
 let nbMonumentsSnapped = 0;
+let startNewGame = false;
 let winGame = false;
 
 function generateMap() {
@@ -158,6 +159,16 @@ function blit() {
 
 function render() {
   switch (screen) {
+    case TITLE_SCREEN:
+      BUFFER_CTX.fillStyle = 'white';
+      BUFFER_CTX.fillRect(0, 0, WIDTH, HEIGHT);
+
+      BUFFER_CTX.fillStyle = 'black';
+      BUFFER_CTX.font = '64px Arial';
+      BUFFER_CTX.textAlign = 'center';
+      BUFFER_CTX.fillText('a Tourist in Paris', WIDTH / 2, HEIGHT / 2);
+      break;
+    // TODO goal screen (tourist: noum, person geographically and culturally lost, trying to cross iconic sightseeings from his bucket list before his tour bus departs)
     case GAME_SCREEN:
       BUFFER_CTX.fillStyle = 'white';
       BUFFER_CTX.fillRect(0, 0, WIDTH, HEIGHT);
@@ -283,18 +294,29 @@ function checkVictoryAndGameOver() {
   }
 }
 
+function newGame() {
+  generateMap();
+  generateEntities();
+  nbMonuments = map.reduce(function(sum, plate) {
+    return sum + (plate === PLATE_MONUMENT ? 1 : 0);
+  }, 0);
+  nbMonumentsSnapped = 0;
+  player[INDEX_MOVEUP] = player[INDEX_MOVEDOWN] = player[INDEX_MOVELEFT] = player[INDEX_MOVERIGHT] = 0;
+  player[INDEX_X] = player[INDEX_Y] = BLOCK_SIZE;
+  winGame = false;
+  startNewGame = false;
+  screen = GAME_SCREEN;
+}
+
 function update(elapsedTime) {
   switch (screen) {
-    case GAME_SCREEN:
-      // TODO better done on the title screen or loadding screen
-      if (!map.length) {
-        generateMap();
-        generateEntities();
-        nbMonuments = map.reduce(function(sum, plate) {
-          return sum + (plate === PLATE_MONUMENT ? 1 : 0);
-        }, 0);
-        winGame = false;
+    case TITLE_SCREEN:
+    case END_SCREEN:
+      if (startNewGame) {
+        newGame();
       }
+      break;
+    case GAME_SCREEN:
       setPlayerPosition(elapsedTime);
       for (let entity of entities) {
         const [collision, ...values] = checkCollision(entity);
@@ -362,6 +384,8 @@ onkeydown = function(e) {
         case 83: // S
           player[INDEX_MOVEDOWN] = 1;
           break;
+        case 80: // P
+          // TODO pause game
       }
       break;
   }
@@ -371,6 +395,13 @@ onkeyup = function(e) {
   // prevent itch.io from scrolling the page up/down
   e.preventDefault();
   switch (screen) {
+    case TITLE_SCREEN:
+      switch (e.which) {
+        case 13: // Enter
+        case 78: // N
+          startNewGame = true;
+          break;
+      }
     case GAME_SCREEN:
       switch (e.which) {
         case 37: // Left arrow
@@ -393,6 +424,19 @@ onkeyup = function(e) {
           break;
       }
       break;
+    case END_SCREEN:
+      switch (e.which) {
+        case 13: // Enter
+        case 78: // N
+          startNewGame = true;
+          break;
+        case 82: // R
+          // TODO retry same level?
+          break;
+        case 84: // T
+          // TODO Tweet score/level
+          break;
+      }
   }
 };
 
