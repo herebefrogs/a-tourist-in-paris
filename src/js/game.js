@@ -29,7 +29,8 @@ const INDEX_Y = 1;
 const INDEX_W = 2;
 const INDEX_H = 3;
 const INDEX_COLOR = 4;
-const INDEX_MOVEUP = 5;
+const INDEX_MAP_INDEX = 5; // for buildings
+const INDEX_MOVEUP = 5;    // for player
 const INDEX_MOVEDOWN = 6;
 const INDEX_MOVELEFT = 7
 const INDEX_MOVERIGHT = 8;
@@ -43,6 +44,8 @@ const PLATE_MONUMENT = 31;
 let player = [BLOCK_SIZE, BLOCK_SIZE, PLAYER_SIZE, PLAYER_SIZE, 'blue', 0, 0, 0, 0, PLAYER_SPEED];
 let entities = [];
 let map = [];
+let nbMonuments = 0;
+let nbMonumentsSnapped = 0;
 
 function generateMap() {
   map = [];
@@ -100,25 +103,25 @@ function generateEntities() {
     const x = i % MAP_WIDTH;
     const y = (i - x) / MAP_WIDTH;
     if (map[i] === PLATE_MONUMENT) {
-      entities.push([x*PLATE_SIZE + BLOCK_SIZE, y*PLATE_SIZE + BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, 'red']);
+      entities.push([x*PLATE_SIZE + BLOCK_SIZE, y*PLATE_SIZE + BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, 'red', i]);
       continue;
     }
     // corner blocks are on all plates
-    entities.push([x*PLATE_SIZE, y*PLATE_SIZE, BLOCK_SIZE, BLOCK_SIZE, randRGB()]);
-    entities.push([x*PLATE_SIZE + 2*BLOCK_SIZE, y*PLATE_SIZE, BLOCK_SIZE, BLOCK_SIZE, randRGB()]);
-    entities.push([x*PLATE_SIZE, y*PLATE_SIZE + 2*BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, randRGB()]);
-    entities.push([x*PLATE_SIZE + 2*BLOCK_SIZE, y*PLATE_SIZE + 2*BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, randRGB()]);
+    entities.push([x*PLATE_SIZE, y*PLATE_SIZE, BLOCK_SIZE, BLOCK_SIZE, randRGB(), i]);
+    entities.push([x*PLATE_SIZE + 2*BLOCK_SIZE, y*PLATE_SIZE, BLOCK_SIZE, BLOCK_SIZE, randRGB(), i]);
+    entities.push([x*PLATE_SIZE, y*PLATE_SIZE + 2*BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, randRGB(), i]);
+    entities.push([x*PLATE_SIZE + 2*BLOCK_SIZE, y*PLATE_SIZE + 2*BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, randRGB(), i]);
     if (!(map[i] & ROAD_TOP)) {
-      entities.push([x * PLATE_SIZE + BLOCK_SIZE, y*PLATE_SIZE, BLOCK_SIZE, BLOCK_SIZE, randRGB()]);
+      entities.push([x * PLATE_SIZE + BLOCK_SIZE, y*PLATE_SIZE, BLOCK_SIZE, BLOCK_SIZE, randRGB(), i]);
     }
     if (!(map[i] & ROAD_LEFT)) {
-      entities.push([x*PLATE_SIZE, y*PLATE_SIZE + BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, randRGB()]);
+      entities.push([x*PLATE_SIZE, y*PLATE_SIZE + BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, randRGB(), i]);
     }
     if (!(map[i] & ROAD_BOTTOM)) {
-      entities.push([x*PLATE_SIZE + BLOCK_SIZE, y*PLATE_SIZE + 2*BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, randRGB()]);
+      entities.push([x*PLATE_SIZE + BLOCK_SIZE, y*PLATE_SIZE + 2*BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, randRGB(), i]);
     }
     if (!(map[i] & ROAD_RIGHT)) {
-      entities.push([x*PLATE_SIZE + 2*BLOCK_SIZE, y*PLATE_SIZE + BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, randRGB()]);
+      entities.push([x*PLATE_SIZE + 2*BLOCK_SIZE, y*PLATE_SIZE + BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, randRGB(), i]);
     }
   }
 }
@@ -179,77 +182,89 @@ function setPlayerPosition(elapsedTime) {
   const distance = elapsedTime * player[INDEX_SPEED];
   player[INDEX_X] += (player[INDEX_MOVELEFT] + player[INDEX_MOVERIGHT]) * distance;
   player[INDEX_Y] += (player[INDEX_MOVEUP] + player[INDEX_MOVEDOWN]) * distance;
+}
 
-  for (let entity of entities) {
+function checkCollision(entity) {
     const player_right_x = player[INDEX_X] + player[INDEX_W];
     const player_bottom_y = player[INDEX_Y] + player[INDEX_H];
     const entity_right_x = entity[INDEX_X] + entity[INDEX_W];
     const entity_bottom_y = entity[INDEX_Y] + entity[INDEX_H];
 
     // AABB collision
-    if (player[INDEX_X] < entity_right_x &&
-        player_right_x > entity[INDEX_X] &&
-        player[INDEX_Y] < entity_bottom_y &&
-        player_bottom_y > entity[INDEX_Y]) {
+    return [ player[INDEX_X] < entity_right_x &&
+             player_right_x > entity[INDEX_X] &&
+             player[INDEX_Y] < entity_bottom_y &&
+             player_bottom_y > entity[INDEX_Y],
+             player_right_x, player_bottom_y, entity_right_x, entity_bottom_y ];
+}
 
-      const delta_right_x = player_right_x - entity[INDEX_X];
-      const delta_bottom_y = player_bottom_y - entity[INDEX_Y];
-      const delta_left_x = entity_right_x - player[INDEX_X];
-      const delta_top_y = entity_bottom_y - player[INDEX_Y];
+function applyCollisionResponse(entity, values) {
+  const [ player_right_x, player_bottom_y, entity_right_x, entity_bottom_y ] = values;
 
-      // AABB collision response (homegrown wall sliding, not physically correct
-      // because just pushing along one axis by the distance overlapped)
-      if (player[INDEX_MOVERIGHT] && player[INDEX_MOVEDOWN]) {
-        if (delta_right_x < delta_bottom_y) {
-          // collided right side first
-          player[INDEX_X] -= delta_right_x;
-        } else {
-          // collided top side first
-          player[INDEX_Y] -= delta_bottom_y;
-        }
-      }
-      else if (player[INDEX_MOVERIGHT] && player[INDEX_MOVEUP]) {
-        if (delta_right_x < delta_top_y) {
-          // collided righ side first
-          player[INDEX_X] -= delta_right_x;
-        } else {
-          // collided bottom side first
-          player[INDEX_Y] += delta_top_y;
-        }
-      }
-      else if (player[INDEX_MOVERIGHT]) {
-        player[INDEX_X] -= delta_right_x;
-      }
-      else if (player[INDEX_MOVELEFT] && player[INDEX_MOVEDOWN]) {
-        if (delta_left_x < delta_bottom_y) {
-          // collided with left side first
-          player[INDEX_X] += delta_left_x;
-        } else {
-          // collided with top side first
-          player[INDEX_Y] -= delta_bottom_y;
-        }
-      }
-      else if (player[INDEX_MOVELEFT] && player[INDEX_MOVEUP]) {
-        if (delta_left_x < delta_top_y) {
-          // collided with left side first
-          player[INDEX_X] += delta_left_x;
-        } else {
-          // collided with bottom side first
-          player[INDEX_Y] += delta_top_y;
-        }
-      }
-      else if (player[INDEX_MOVELEFT]) {
-        player[INDEX_X] += delta_left_x;
-      }
-      else if (player[INDEX_MOVEDOWN]) {
-        player[INDEX_Y] -= delta_bottom_y;
-      }
-      else if (player[INDEX_MOVEUP]) {
-        player[INDEX_Y] += delta_top_y;
-      }
+  const delta_right_x = player_right_x - entity[INDEX_X];
+  const delta_bottom_y = player_bottom_y - entity[INDEX_Y];
+  const delta_left_x = entity_right_x - player[INDEX_X];
+  const delta_top_y = entity_bottom_y - player[INDEX_Y];
+
+  // AABB collision response (homegrown wall sliding, not physically correct
+  // because just pushing along one axis by the distance overlapped)
+  if (player[INDEX_MOVERIGHT] && player[INDEX_MOVEDOWN]) {
+    if (delta_right_x < delta_bottom_y) {
+      // collided right side first
+      player[INDEX_X] -= delta_right_x;
+    } else {
+      // collided top side first
+      player[INDEX_Y] -= delta_bottom_y;
     }
   }
+  else if (player[INDEX_MOVERIGHT] && player[INDEX_MOVEUP]) {
+    if (delta_right_x < delta_top_y) {
+      // collided righ side first
+      player[INDEX_X] -= delta_right_x;
+    } else {
+      // collided bottom side first
+      player[INDEX_Y] += delta_top_y;
+    }
+  }
+  else if (player[INDEX_MOVERIGHT]) {
+    player[INDEX_X] -= delta_right_x;
+  }
+  else if (player[INDEX_MOVELEFT] && player[INDEX_MOVEDOWN]) {
+    if (delta_left_x < delta_bottom_y) {
+      // collided with left side first
+      player[INDEX_X] += delta_left_x;
+    } else {
+      // collided with top side first
+      player[INDEX_Y] -= delta_bottom_y;
+    }
+  }
+  else if (player[INDEX_MOVELEFT] && player[INDEX_MOVEUP]) {
+    if (delta_left_x < delta_top_y) {
+      // collided with left side first
+      player[INDEX_X] += delta_left_x;
+    } else {
+      // collided with bottom side first
+      player[INDEX_Y] += delta_top_y;
+    }
+  }
+  else if (player[INDEX_MOVELEFT]) {
+    player[INDEX_X] += delta_left_x;
+  }
+  else if (player[INDEX_MOVEDOWN]) {
+    player[INDEX_Y] -= delta_bottom_y;
+  }
+  else if (player[INDEX_MOVEUP]) {
+    player[INDEX_Y] += delta_top_y;
+  }
 };
+
+function checkMonument(entity) {
+  if (map[entity[INDEX_MAP_INDEX]] === PLATE_MONUMENT &&
+      entity[INDEX_COLOR] === 'red') {
+    entity[INDEX_COLOR] = 'green';
+    nbMonumentsSnapped++;
+  }
+}
 
 function update(elapsedTime) {
   switch (screen) {
@@ -257,10 +272,19 @@ function update(elapsedTime) {
       // TODO better done on the title screen or loadding screen
       if (!map.length) {
         generateMap();
-        // TODO transcribe the map into entities
         generateEntities();
+        nbMonuments = map.reduce(function(sum, plate) {
+          return sum + (plate === PLATE_MONUMENT ? 1 : 0);
+        }, 0);
       }
       setPlayerPosition(elapsedTime);
+      for (let entity of entities) {
+        const [collision, ...values] = checkCollision(entity);
+        if (collision) {
+          applyCollisionResponse(entity, values);
+          checkMonument(entity);
+        }
+      }
       break;
   }
 };
