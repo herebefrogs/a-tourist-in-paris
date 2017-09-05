@@ -166,10 +166,7 @@ function render() {
       BUFFER_CTX.fillStyle = 'white';
       BUFFER_CTX.fillRect(0, 0, WIDTH, HEIGHT);
 
-      BUFFER_CTX.fillStyle = 'black';
-      BUFFER_CTX.font = '64px Arial';
-      BUFFER_CTX.textAlign = 'center';
-      BUFFER_CTX.fillText('a Tourist in Paris', WIDTH / 2, HEIGHT / 2);
+      renderText('a Tourist in Paris', WIDTH / 2, HEIGHT / 2, '64px Arial');
       break;
     // TODO goal screen (tourist: noum, person geographically and culturally lost, trying to cross iconic sightseeings from his bucket list before his tour bus departs)
     case GAME_SCREEN:
@@ -181,21 +178,16 @@ function render() {
       for (let entity of entities) {
         renderEntity(entity);
       }
-      BUFFER_CTX.fillStyle = 'black';
-      BUFFER_CTX.font = '24px Arial';
-      BUFFER_CTX.textAlign = 'right';
       const minutes = Math.floor(Math.ceil(timeLeft) / 60);
       const seconds = Math.ceil(timeLeft) - minutes * 60;
-      BUFFER_CTX.fillText(`${minutes}:${seconds <= 9 ? '0' : ''}${seconds}`, WIDTH - BLOCK_SIZE, 2*BLOCK_SIZE);
+      renderText(`${minutes}:${seconds <= 9 ? '0' : ''}${seconds}`,
+                 WIDTH - BLOCK_SIZE, 2*BLOCK_SIZE, '24px Arial', 'right');
       break;
     case END_SCREEN:
       BUFFER_CTX.fillStyle = 'white';
       BUFFER_CTX.fillRect(0, 0, WIDTH, HEIGHT);
 
-      BUFFER_CTX.fillStyle = 'black';
-      BUFFER_CTX.font = '48px Arial';
-      BUFFER_CTX.textAlign = 'center';
-      BUFFER_CTX.fillText(`you ${winGame ? 'won' : 'lost'}!`, WIDTH / 2, HEIGHT / 2);
+      renderText(`you ${winGame ? 'won' : 'lost'}!`, WIDTH / 2, HEIGHT / 2);
       break;
   }
 
@@ -206,6 +198,13 @@ function renderEntity(entity) {
   BUFFER_CTX.fillStyle = entity[INDEX_COLOR];
   BUFFER_CTX.fillRect(Math.round(entity[INDEX_X]), Math.round(entity[INDEX_Y]),
                       entity[INDEX_W], entity[INDEX_H]);
+}
+
+function renderText(msg, x, y, font = '48px Arial', align = 'center', color = 'black') {
+  BUFFER_CTX.fillStyle = color;
+  BUFFER_CTX.font = font;
+  BUFFER_CTX.textAlign = align;
+  BUFFER_CTX.fillText(msg, x, y);
 }
 
 function setPlayerPosition(elapsedTime) {
