@@ -42,12 +42,13 @@ const ROAD_BOTTOM = 4;
 const ROAD_LEFT = 8;
 const PLATE_MONUMENT = 31;
 let player = [BLOCK_SIZE, BLOCK_SIZE, PLAYER_SIZE, PLAYER_SIZE, 'blue', 0, 0, 0, 0, PLAYER_SPEED];
-let entities = [];
-let map = [];
-let nbMonuments = 0;
-let nbMonumentsSnapped = 0;
-let startNewGame = false;
-let winGame = false;
+let entities;
+let map;
+let nbMonuments;
+let nbMonumentsSnapped;
+let startNewGame;
+let retryGame;
+let winGame;
 
 function generateMap() {
   map = [];
@@ -300,18 +301,32 @@ function newGame() {
   nbMonuments = map.reduce(function(sum, plate) {
     return sum + (plate === PLATE_MONUMENT ? 1 : 0);
   }, 0);
+  startNewGame = false;
+  resetGame();
+}
+
+function resetGame() {
+  entities.forEach(function(entity) {
+    if (map[entity[INDEX_MAP_INDEX]] === PLATE_MONUMENT) {
+      entity[INDEX_COLOR] = 'red';
+    }
+  });
   nbMonumentsSnapped = 0;
   player[INDEX_MOVEUP] = player[INDEX_MOVEDOWN] = player[INDEX_MOVELEFT] = player[INDEX_MOVERIGHT] = 0;
   player[INDEX_X] = player[INDEX_Y] = BLOCK_SIZE;
   winGame = false;
-  startNewGame = false;
+  retryGame = false;
   screen = GAME_SCREEN;
 }
 
 function update(elapsedTime) {
   switch (screen) {
-    case TITLE_SCREEN:
     case END_SCREEN:
+      if (retryGame) {
+        resetGame();
+      }
+      // no break to also handle title screen keys/commands
+    case TITLE_SCREEN:
       if (startNewGame) {
         newGame();
       }
@@ -431,7 +446,7 @@ onkeyup = function(e) {
           startNewGame = true;
           break;
         case 82: // R
-          // TODO retry same level?
+          retryGame = true;
           break;
         case 84: // T
           // TODO Tweet score/level
