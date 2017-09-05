@@ -3,8 +3,9 @@ import {rand, choice, randRGB} from './utils';
 // globals
 
 const TITLE_SCREEN = 0;
-const GAME_SCREEN = 1;
-const END_SCREEN = 2;
+const GOAL_SCREEN = 1;
+const GAME_SCREEN = 2;
+const END_SCREEN = 3;
 let screen = TITLE_SCREEN;
 
 const PLAYER_SIZE = 10; // in px
@@ -166,9 +167,26 @@ function render() {
       BUFFER_CTX.fillStyle = 'white';
       BUFFER_CTX.fillRect(0, 0, WIDTH, HEIGHT);
 
-      renderText('a Tourist in Paris', WIDTH / 2, HEIGHT / 2, '64px Arial');
+      renderText('a Tourist in Paris', WIDTH / 2, 128, '64px Arial');
+      if (Math.floor(currentTime/1000)%2) {
+        renderText('press N to start', WIDTH / 2, HEIGHT * 2 / 3, '24px Arial');
+      }
+      renderText('proudly made in Canada', WIDTH / 2, HEIGHT - 2.5*BLOCK_SIZE, '24px Arial');
+      renderText('by Jerome Lecomte for JS13KGAMES 2017', WIDTH / 2, HEIGHT - BLOCK_SIZE, '24px Arial');
       break;
-    // TODO goal screen (tourist: noum, person geographically and culturally lost, trying to cross iconic sightseeings from his bucket list before his tour bus departs)
+    case GOAL_SCREEN:
+      BUFFER_CTX.fillStyle = 'white';
+      BUFFER_CTX.fillRect(0, 0, WIDTH, HEIGHT);
+
+      renderText('Tourist: person geographically and culturally', 2*BLOCK_SIZE, 2*BLOCK_SIZE, '24px Arial', 'left');
+      renderText('lost, trying to cross iconic sightseeings from his', 2*BLOCK_SIZE, 4*BLOCK_SIZE, '24px Arial', 'left');
+      renderText('bucket list before his tour bus departs.', 2*BLOCK_SIZE, 6*BLOCK_SIZE, '24px Arial', 'left');
+      renderText('Arrow keys or WASD/ZQSD to move around.', 2*BLOCK_SIZE, 10*BLOCK_SIZE, '24px Arial', 'left');
+      renderText('Touch all red squares before time runs out.', 2*BLOCK_SIZE, 12*BLOCK_SIZE, '24px Arial', 'left');
+      if (Math.floor(currentTime/1000)%2) {
+        renderText('Press any key.', 2*BLOCK_SIZE, 16*BLOCK_SIZE, '24px Arial', 'left');
+      }
+      break;
     case GAME_SCREEN:
       BUFFER_CTX.fillStyle = 'white';
       BUFFER_CTX.fillRect(0, 0, WIDTH, HEIGHT);
@@ -187,7 +205,10 @@ function render() {
       BUFFER_CTX.fillStyle = 'white';
       BUFFER_CTX.fillRect(0, 0, WIDTH, HEIGHT);
 
-      renderText(`you ${winGame ? 'won' : 'lost'}!`, WIDTH / 2, HEIGHT / 2);
+      renderText(`You ${winGame ? 'won' : 'lost'}!`, WIDTH / 2, 128);
+      renderText(`${nbMonumentsSnapped} out of ${nbMonuments} sightseeings`, WIDTH / 2, HEIGHT / 2);
+      renderText('press N to start new level', WIDTH / 2, HEIGHT * 2 / 3, '24px Arial');
+      renderText('press R to retry same level', WIDTH / 2, HEIGHT * 2 / 3 + 2*BLOCK_SIZE, '24px Arial');
       break;
   }
 
@@ -337,8 +358,8 @@ function update(elapsedTime) {
       if (retryGame) {
         resetGame();
       }
-      // no break to also handle title screen keys/commands
-    case TITLE_SCREEN:
+      // no break to also handle title/goal screen keys/commands
+    case GOAL_SCREEN:
       if (startNewGame) {
         newGame();
       }
@@ -427,9 +448,13 @@ onkeyup = function(e) {
       switch (e.which) {
         case 13: // Enter
         case 78: // N
-          startNewGame = true;
+          screen = GOAL_SCREEN;
           break;
       }
+      break;
+    case GOAL_SCREEN:
+      startNewGame = true;
+      break;
     case GAME_SCREEN:
       switch (e.which) {
         case 37: // Left arrow
