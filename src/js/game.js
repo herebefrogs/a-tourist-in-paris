@@ -41,6 +41,7 @@ const ROAD_RIGHT = 2;
 const ROAD_BOTTOM = 4;
 const ROAD_LEFT = 8;
 const PLATE_MONUMENT = 31;
+const LEVEL_TIME = 60; // in seconds
 let player = [BLOCK_SIZE, BLOCK_SIZE, PLAYER_SIZE, PLAYER_SIZE, 'blue', 0, 0, 0, 0, PLAYER_SPEED];
 let entities;
 let map;
@@ -49,6 +50,7 @@ let nbMonumentsSnapped;
 let startNewGame;
 let retryGame;
 let winGame;
+let timeLeft; // in seconds
 
 function generateMap() {
   map = [];
@@ -179,6 +181,12 @@ function render() {
       for (let entity of entities) {
         renderEntity(entity);
       }
+      BUFFER_CTX.fillStyle = 'black';
+      BUFFER_CTX.font = '24px Arial';
+      BUFFER_CTX.textAlign = 'right';
+      const minutes = Math.floor(Math.ceil(timeLeft) / 60);
+      const seconds = Math.ceil(timeLeft) - minutes * 60;
+      BUFFER_CTX.fillText(`${minutes}:${seconds <= 9 ? '0' : ''}${seconds}`, WIDTH - BLOCK_SIZE, 2*BLOCK_SIZE);
       break;
     case END_SCREEN:
       BUFFER_CTX.fillStyle = 'white';
@@ -187,7 +195,7 @@ function render() {
       BUFFER_CTX.fillStyle = 'black';
       BUFFER_CTX.font = '48px Arial';
       BUFFER_CTX.textAlign = 'center';
-      BUFFER_CTX.fillText(`you ${winGame ? 'win' : 'loose'}!`, WIDTH / 2, HEIGHT / 2);
+      BUFFER_CTX.fillText(`you ${winGame ? 'won' : 'lost'}!`, WIDTH / 2, HEIGHT / 2);
       break;
   }
 
@@ -293,6 +301,10 @@ function checkVictoryAndGameOver() {
     screen = END_SCREEN;
     winGame = true;
   }
+  else if (timeLeft < 0) {
+    screen = END_SCREEN;
+    winGame = false;
+  }
 }
 
 function newGame() {
@@ -316,6 +328,7 @@ function resetGame() {
   player[INDEX_X] = player[INDEX_Y] = BLOCK_SIZE;
   winGame = false;
   retryGame = false;
+  timeLeft = LEVEL_TIME;
   screen = GAME_SCREEN;
 }
 
@@ -332,6 +345,7 @@ function update(elapsedTime) {
       }
       break;
     case GAME_SCREEN:
+      timeLeft -= elapsedTime;
       setPlayerPosition(elapsedTime);
       for (let entity of entities) {
         const [collision, ...values] = checkCollision(entity);
