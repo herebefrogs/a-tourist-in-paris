@@ -11,13 +11,19 @@ let screen = TITLE_SCREEN;
 const PLAYER_SIZE = 10; // in px
 const BLOCK_SIZE = 20; // in px (size of a building)
 const PLATE_SIZE = BLOCK_SIZE * 3; // in px (3x3 blocks in a plate)
-const MAP_WIDTH = 10; // in plates
-const MAP_HEIGHT = 8; // in plates
+const MAP_WIDTH = 14; // in plates
+const MAP_HEIGHT = 10; // in plates
 
-const CTX = c.getContext('2d');
-const WIDTH = MAP_WIDTH * PLATE_SIZE;
-const HEIGHT = MAP_HEIGHT * PLATE_SIZE;
-const BUFFER = c.cloneNode();
+const OFFSET_BOUND = 100; // px, offset from side of visible screen that moves the viewport if player goes beyond
+let bufferOffsetX = 0;
+let bufferOffsetY = 0;
+
+const CTX = c.getContext('2d');         // visible canvas
+const WIDTH = 600;
+const HEIGHT = 480;
+const BG = c.cloneNode();               // full map rendered off screen
+const BG_CTX = BG.getContext('2d');
+const BUFFER = c.cloneNode();           // visible portion of map
 const BUFFER_CTX = BUFFER.getContext('2d');
 
 let currentTime;
@@ -45,6 +51,7 @@ const PLATE_MONUMENT = 31;
 const LEVEL_TIME = 60; // in seconds
 let player = [BLOCK_SIZE, BLOCK_SIZE, PLAYER_SIZE, PLAYER_SIZE, 'blue', 0, 0, 0, 0, PLAYER_SPEED];
 let entities;
+let redrawEntity;
 let map;
 let nbMonuments;
 let nbMonumentsSnapped;
@@ -188,14 +195,20 @@ function render() {
       }
       break;
     case GAME_SCREEN:
-      BUFFER_CTX.fillStyle = 'white';
-      BUFFER_CTX.fillRect(0, 0, WIDTH, HEIGHT);
+      BUFFER_CTX.drawImage(
+        BG,
+        // adjust x/y offset
+        bufferOffsetX, bufferOffsetY, WIDTH, HEIGHT,
+        0, 0, WIDTH, HEIGHT
+      );
 
       player[INDEX_COLOR] = randRGB();
       renderEntity(player);
-      for (let entity of entities) {
-        renderEntity(entity);
+      if (redrawEntity) {
+        renderEntity(redrawEntity, BG_CTX);
+        redrawEntity = null;
       }
+
       const minutes = Math.floor(Math.ceil(timeLeft) / 60);
       const seconds = Math.ceil(timeLeft) - minutes * 60;
       renderText(`${minutes}:${seconds <= 9 ? '0' : ''}${seconds}`,
@@ -215,10 +228,21 @@ function render() {
   blit();
 };
 
-function renderEntity(entity) {
-  BUFFER_CTX.fillStyle = entity[INDEX_COLOR];
-  BUFFER_CTX.fillRect(Math.round(entity[INDEX_X]), Math.round(entity[INDEX_Y]),
-                      entity[INDEX_W], entity[INDEX_H]);
+function renderMap() {
+  BG_CTX.fillStyle = 'white';
+  BG_CTX.fillRect(0, 0, BG.width, BG.height);
+
+  for (let entity of entities) {
+    renderEntity(entity, BG_CTX);
+  }
+};
+
+function renderEntity(entity, ctx = BUFFER_CTX) {
+  ctx.fillStyle = entity[INDEX_COLOR];
+  const x = entity[INDEX_X] - (entity === player ? bufferOffsetX: 0);
+  const y = entity[INDEX_Y] - (entity === player ? bufferOffsetY: 0);
+  ctx.fillRect(Math.round(x), Math.round(y),
+               entity[INDEX_W], entity[INDEX_H]);
 }
 
 function renderText(msg, x, y, font = '48px Arial', align = 'center', color = 'black') {
@@ -312,9 +336,25 @@ function checkMonument(entity) {
   if (map[entity[INDEX_MAP_INDEX]] === PLATE_MONUMENT &&
       entity[INDEX_COLOR] === 'red') {
     entity[INDEX_COLOR] = 'green';
+    redrawEntity = entity;
     nbMonumentsSnapped++;
   }
 }
+
+function setBufferOffsets() {
+  if (0 < bufferOffsetX && player[INDEX_X] < bufferOffsetX + OFFSET_BOUND) {
+    bufferOffsetX = Math.max(0, player[INDEX_X] - OFFSET_BOUND);
+  }
+  else if (bufferOffsetX < BG.width - WIDTH && player[INDEX_X] + player[INDEX_W] > bufferOffsetX + WIDTH - OFFSET_BOUND) {
+    bufferOffsetX = Math.min(BG.width - WIDTH, player[INDEX_X] + player[INDEX_W] - WIDTH + OFFSET_BOUND);
+  }
+  if (0 < bufferOffsetY && player[INDEX_Y] < bufferOffsetY + OFFSET_BOUND) {
+    bufferOffsetY = Math.max(0, player[INDEX_Y] - OFFSET_BOUND);
+  }
+  else if (bufferOffsetY < BG.height - HEIGHT && player[INDEX_Y] + player[INDEX_H] > bufferOffsetY + HEIGHT - OFFSET_BOUND) {
+    bufferOffsetY = Math.min(BG.height - HEIGHT, player[INDEX_Y] + player[INDEX_H] - HEIGHT + OFFSET_BOUND);
+  }
+};
 
 function checkVictoryAndGameOver() {
   if (nbMonumentsSnapped === nbMonuments) {
@@ -330,6 +370,7 @@ function checkVictoryAndGameOver() {
 function newGame() {
   generateMap();
   generateEntities();
+  renderMap();
   nbMonuments = map.reduce(function(sum, plate) {
     return sum + (plate === PLATE_MONUMENT ? 1 : 0);
   }, 0);
@@ -344,8 +385,9 @@ function resetGame() {
     }
   });
   nbMonumentsSnapped = 0;
-  player[INDEX_MOVEUP] = player[INDEX_MOVEDOWN] = player[INDEX_MOVELEFT] = player[INDEX_MOVERIGHT] = 0;
+  bufferOffsetX = bufferOffsetY = player[INDEX_MOVEUP] = player[INDEX_MOVEDOWN] = player[INDEX_MOVELEFT] = player[INDEX_MOVERIGHT] = 0;
   player[INDEX_X] = player[INDEX_Y] = BLOCK_SIZE;
+  redrawEntity = null;
   winGame = false;
   retryGame = false;
   timeLeft = LEVEL_TIME;
@@ -374,6 +416,7 @@ function update(elapsedTime) {
           checkMonument(entity);
         }
       }
+      setBufferOffsets();
       checkVictoryAndGameOver();
       break;
   }
@@ -385,6 +428,8 @@ function update(elapsedTime) {
 onload = function(e) {
   document.title = 'A Tourist in Paris';
 
+  BG.width = MAP_WIDTH * PLATE_SIZE;
+  BG.height = MAP_HEIGHT * PLATE_SIZE;
   BUFFER.width = WIDTH;
   BUFFER.height = HEIGHT;
 
@@ -403,7 +448,7 @@ onresize = onrotate = function() {
   c.width = WIDTH * scaleToFit;
   c.height = HEIGHT * scaleToFit;
   // disable smoothing on image scaling
-  [ CTX, BUFFER_CTX ].forEach(function(ctx) {
+  [ CTX, BG_CTX, BUFFER_CTX ].forEach(function(ctx) {
     ctx.mozImageSmoothingEnabled = ctx.msImageSmoothingEnabled = ctx.imageSmoothingEnabled = false;
   });
 };
