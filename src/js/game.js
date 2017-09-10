@@ -8,13 +8,13 @@ const GAME_SCREEN = 2;
 const END_SCREEN = 3;
 let screen = TITLE_SCREEN;
 
-const PLAYER_SIZE = 10; // in px
-const BLOCK_SIZE = 20; // in px (size of a building)
+const PLAYER_SIZE = 20; // in px
+const BLOCK_SIZE = 80; // in px (size of a building)
 const PLATE_SIZE = BLOCK_SIZE * 3; // in px (3x3 blocks in a plate)
 const MAP_WIDTH = 14; // in plates
 const MAP_HEIGHT = 10; // in plates
 
-const OFFSET_BOUND = 100; // px, offset from side of visible screen that moves the viewport if player goes beyond
+const OFFSET_BOUND = 200; // px, offset from side of visible screen that moves the viewport if player goes beyond
 let bufferOffsetX = 0;
 let bufferOffsetY = 0;
 
@@ -42,13 +42,13 @@ const INDEX_MOVEDOWN = 6;
 const INDEX_MOVELEFT = 7
 const INDEX_MOVERIGHT = 8;
 const INDEX_SPEED = 9;
-const PLAYER_SPEED = 100; // px/s
+const PLAYER_SPEED = 200; // px/s
 const ROAD_TOP = 1;
 const ROAD_RIGHT = 2;
 const ROAD_BOTTOM = 4;
 const ROAD_LEFT = 8;
 const PLATE_MONUMENT = 31;
-const LEVEL_TIME = 60; // in seconds
+const LEVEL_TIME = 120; // in seconds
 let player = [BLOCK_SIZE, BLOCK_SIZE, PLAYER_SIZE, PLAYER_SIZE, 'blue', 0, 0, 0, 0, PLAYER_SPEED];
 let entities;
 let redrawEntity;
@@ -174,24 +174,24 @@ function render() {
       BUFFER_CTX.fillStyle = 'white';
       BUFFER_CTX.fillRect(0, 0, WIDTH, HEIGHT);
 
-      renderText('a Tourist in Paris', WIDTH / 2, 128, '64px Arial');
+      renderText('a Tourist in Paris', WIDTH / 2, 112, '64px Arial');
       if (Math.floor(currentTime/1000)%2) {
-        renderText('press N or tap screen to start', WIDTH / 2, HEIGHT * 2 / 3, '24px Arial');
+        renderText('press N or tap screen to start', WIDTH / 2, HEIGHT / 2);
       }
-      renderText('proudly made in Canada', WIDTH / 2, HEIGHT - 2.5*BLOCK_SIZE, '24px Arial');
-      renderText('by Jerome Lecomte for JS13KGAMES 2017', WIDTH / 2, HEIGHT - BLOCK_SIZE, '24px Arial');
+      renderText('proudly made in Canada', WIDTH / 2, HEIGHT - 80);
+      renderText('by Jerome Lecomte for JS13KGAMES 2017', WIDTH / 2, HEIGHT - 48);
       break;
     case GOAL_SCREEN:
       BUFFER_CTX.fillStyle = 'white';
       BUFFER_CTX.fillRect(0, 0, WIDTH, HEIGHT);
 
-      renderText('Tourist: person geographically and culturally', 2*BLOCK_SIZE, 2*BLOCK_SIZE, '24px Arial', 'left');
-      renderText('lost, trying to cross iconic sightseeings from his', 2*BLOCK_SIZE, 4*BLOCK_SIZE, '24px Arial', 'left');
-      renderText('bucket list before his tour bus departs.', 2*BLOCK_SIZE, 6*BLOCK_SIZE, '24px Arial', 'left');
-      renderText('Arrow keys, WASD/ZQSD or swipe screen to move.', 2*BLOCK_SIZE, 10*BLOCK_SIZE, '24px Arial', 'left');
-      renderText('Touch all red squares before time runs out.', 2*BLOCK_SIZE, 12*BLOCK_SIZE, '24px Arial', 'left');
+      renderText('Tourist: person geographically and culturally lost,', 24, 40, '24px Arial', 'left');
+      renderText('trying to cross iconic sightseeings from his bucket', 24, 80, '24px Arial', 'left');
+      renderText('list before his tour bus departs.', 24, 120, '24px Arial', 'left');
+      renderText('Arrow keys, WASD/ZQSD or swipe screen to move.', 24, 200, '24px Arial', 'left');
+      renderText('Touch all red squares before time runs out.', 24, 240, '24px Arial', 'left');
       if (Math.floor(currentTime/1000)%2) {
-        renderText('Press any key or tap screen.', 2*BLOCK_SIZE, 16*BLOCK_SIZE, '24px Arial', 'left');
+        renderText('Press any key or tap screen.', 24, 320, '24px Arial', 'left');
       }
       break;
     case GAME_SCREEN:
@@ -212,17 +212,17 @@ function render() {
       const minutes = Math.floor(Math.ceil(timeLeft) / 60);
       const seconds = Math.ceil(timeLeft) - minutes * 60;
       renderText(`${minutes}:${seconds <= 9 ? '0' : ''}${seconds}`,
-                 WIDTH - BLOCK_SIZE, 2*BLOCK_SIZE, '24px Arial', 'right');
+                 WIDTH - 24, 40, '24px Arial', 'right');
       break;
     case END_SCREEN:
       BUFFER_CTX.fillStyle = 'white';
       BUFFER_CTX.fillRect(0, 0, WIDTH, HEIGHT);
 
-      renderText(`You ${winGame ? 'won' : 'lost'}!`, WIDTH / 2, 128);
-      renderText(`${nbMonumentsSnapped} out of ${nbMonuments} sightseeings`, WIDTH / 2, HEIGHT / 2);
-      renderText('press R to retry same level', WIDTH / 2, HEIGHT * 2 / 3, '24px Arial');
-      renderText('press N or tap screen to start new level', WIDTH / 2, HEIGHT * 2 / 3 + 2*BLOCK_SIZE, '24px Arial');
-      renderText('press T to share your score on Twitter', WIDTH / 2, HEIGHT * 2 / 3 + 4*BLOCK_SIZE, '24px Arial');
+      renderText(`You ${winGame ? 'won' : 'lost'}!`, WIDTH / 2, 112, '64px Arial');
+      renderText(`${nbMonumentsSnapped} out of ${nbMonuments} sightseeings`, WIDTH / 2, HEIGHT / 2, '48px Arial');
+      renderText('press R to retry same level', WIDTH / 2, HEIGHT * 2 / 3);
+      renderText('press N or tap screen to start new level', WIDTH / 2, HEIGHT * 2 / 3 + 40);
+      renderText('press T to share your score on Twitter', WIDTH / 2, HEIGHT * 2 / 3 + 80);
       break;
   }
 
@@ -242,12 +242,12 @@ function renderEntity(entity, ctx = BUFFER_CTX) {
   ctx.fillStyle = entity[INDEX_COLOR];
   const x = entity[INDEX_X] - (entity === player ? bufferOffsetX: 0);
   const y = entity[INDEX_Y] - (entity === player ? bufferOffsetY: 0);
-  var outline = (entity !== player && map[entity[INDEX_MAP_INDEX]] !== PLATE_MONUMENT) ? choice([0, 1, 2]) : 0;
+  var outline = (entity !== player && map[entity[INDEX_MAP_INDEX]] !== PLATE_MONUMENT) ? choice([0, 1, 2, 3, 4, 5]) : 0;
   ctx.fillRect(Math.round(x - outline), Math.round(y - outline),
                entity[INDEX_W] + 2*outline, entity[INDEX_H] + 2*outline);
 }
 
-function renderText(msg, x, y, font = '48px Arial', align = 'center', color = 'black') {
+function renderText(msg, x, y, font = '24px Arial', align = 'center', color = 'black') {
   BUFFER_CTX.fillStyle = color;
   BUFFER_CTX.font = font;
   BUFFER_CTX.textAlign = align;
