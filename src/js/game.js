@@ -1,4 +1,4 @@
-import {rand, choice, randRGB} from './utils';
+import {rand, choice, randRGB, randR, randG} from './utils';
 
 // globals
 
@@ -38,7 +38,8 @@ const INDEX_H = 3;
 const INDEX_COLOR = 4;
 const INDEX_MAP_INDEX = 5; // for buildings
 const INDEX_MOVEUP = 5;    // for player
-const INDEX_MOVEDOWN = 6;
+const INDEX_VISITED= 6;      // for buildings
+const INDEX_MOVEDOWN = 6;  // for player
 const INDEX_MOVELEFT = 7
 const INDEX_MOVERIGHT = 8;
 const INDEX_SPEED = 9;
@@ -51,7 +52,6 @@ const PLATE_MONUMENT = 31;
 const LEVEL_TIME = 120; // in seconds
 let player = [BLOCK_SIZE, BLOCK_SIZE, PLAYER_SIZE, PLAYER_SIZE, 'blue', 0, 0, 0, 0, PLAYER_SPEED];
 let entities;
-let redrawEntity;
 let map;
 let nbMonuments;
 let nbMonumentsSnapped;
@@ -116,7 +116,7 @@ function generateEntities() {
     const x = i % MAP_WIDTH;
     const y = (i - x) / MAP_WIDTH;
     if (map[i] === PLATE_MONUMENT) {
-      entities.push([x*PLATE_SIZE + BLOCK_SIZE, y*PLATE_SIZE + BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, 'red', i]);
+      entities.push([x*PLATE_SIZE + BLOCK_SIZE, y*PLATE_SIZE + BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, randR(), i, false]);
       continue;
     }
     // corner blocks are on all plates
@@ -189,12 +189,18 @@ function render() {
       renderText('trying to cross iconic sightseeings from his bucket', 24, 80, '24px Arial', 'left');
       renderText('list before his tour bus departs.', 24, 120, '24px Arial', 'left');
       renderText('Arrow keys, WASD/ZQSD or swipe screen to move.', 24, 200, '24px Arial', 'left');
-      renderText('Touch all red squares before time runs out.', 24, 240, '24px Arial', 'left');
+      renderText('Touch all blinking red squares before time runs out.', 24, 240, '24px Arial', 'left');
       if (Math.floor(currentTime/1000)%2) {
         renderText('Press any key or tap screen.', 24, 320, '24px Arial', 'left');
       }
       break;
     case GAME_SCREEN:
+      for (let entity of entities) {
+        if (map[entity[INDEX_MAP_INDEX]] === PLATE_MONUMENT) {
+          entity[INDEX_COLOR] = entity[INDEX_VISITED] ? randG() : randR();
+          renderEntity(entity, BG_CTX);
+        }
+      }
       BUFFER_CTX.drawImage(
         BG,
         // adjust x/y offset
@@ -204,10 +210,6 @@ function render() {
 
       player[INDEX_COLOR] = randRGB();
       renderEntity(player);
-      if (redrawEntity) {
-        renderEntity(redrawEntity, BG_CTX);
-        redrawEntity = null;
-      }
 
       const minutes = Math.floor(Math.ceil(timeLeft) / 60);
       const seconds = Math.ceil(timeLeft) - minutes * 60;
@@ -336,9 +338,8 @@ function applyCollisionResponse(entity, values) {
 
 function checkMonument(entity) {
   if (map[entity[INDEX_MAP_INDEX]] === PLATE_MONUMENT &&
-      entity[INDEX_COLOR] === 'red') {
-    entity[INDEX_COLOR] = 'green';
-    redrawEntity = entity;
+      !entity[INDEX_VISITED]) {
+    entity[INDEX_VISITED] = true;
     nbMonumentsSnapped++;
   }
 }
@@ -383,13 +384,12 @@ function newGame() {
 function resetGame() {
   entities.forEach(function(entity) {
     if (map[entity[INDEX_MAP_INDEX]] === PLATE_MONUMENT) {
-      entity[INDEX_COLOR] = 'red';
+      entity[INDEX_VISITED] = false;
     }
   });
   nbMonumentsSnapped = 0;
   bufferOffsetX = bufferOffsetY = player[INDEX_MOVEUP] = player[INDEX_MOVEDOWN] = player[INDEX_MOVELEFT] = player[INDEX_MOVERIGHT] = 0;
   player[INDEX_X] = player[INDEX_Y] = BLOCK_SIZE;
-  redrawEntity = null;
   winGame = false;
   retryGame = false;
   timeLeft = LEVEL_TIME;

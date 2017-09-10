@@ -7,11 +7,23 @@ export function choice(values) {
 };
 
 export function randRGB() {
-  let rgb = '#';
-  for (let i = 0; i < 6; i++) {
-    rgb += rand(0, 9);
+  return `#${randChannel()}${randChannel()}${randChannel()}`;
+};
+
+function randChannel() {
+  let value = '';
+  for (let i = 0; i < 2; i++) {
+    value += rand(0, 9);
   }
-  return rgb;
+  return value;
+};
+
+export function randR() {
+  return `#${randChannel()}0000`;
+};
+
+export function randG() {
+  return `#00${randChannel()}00`;
 };
 
 export default rand;
