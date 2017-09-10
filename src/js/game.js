@@ -241,8 +241,9 @@ function renderEntity(entity, ctx = BUFFER_CTX) {
   ctx.fillStyle = entity[INDEX_COLOR];
   const x = entity[INDEX_X] - (entity === player ? bufferOffsetX: 0);
   const y = entity[INDEX_Y] - (entity === player ? bufferOffsetY: 0);
-  ctx.fillRect(Math.round(x), Math.round(y),
-               entity[INDEX_W], entity[INDEX_H]);
+  var outline = (entity !== player && map[entity[INDEX_MAP_INDEX]] !== PLATE_MONUMENT) ? choice([0, 1, 2]) : 0;
+  ctx.fillRect(Math.round(x - outline), Math.round(y - outline),
+               entity[INDEX_W] + 2*outline, entity[INDEX_H] + 2*outline);
 }
 
 function renderText(msg, x, y, font = '48px Arial', align = 'center', color = 'black') {
