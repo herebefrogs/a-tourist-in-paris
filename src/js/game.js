@@ -222,6 +222,7 @@ function render() {
       renderText(`${nbMonumentsSnapped} out of ${nbMonuments} sightseeings`, WIDTH / 2, HEIGHT / 2);
       renderText('press N to start new level', WIDTH / 2, HEIGHT * 2 / 3, '24px Arial');
       renderText('press R to retry same level', WIDTH / 2, HEIGHT * 2 / 3 + 2*BLOCK_SIZE, '24px Arial');
+      renderText('press T to share your score on Twitter', WIDTH / 2, HEIGHT * 2 / 3 + 4*BLOCK_SIZE, '24px Arial');
       break;
   }
 
@@ -533,7 +534,7 @@ onkeyup = function(e) {
           retryGame = true;
           break;
         case 84: // T
-          // TODO Tweet score/level
+          open(`https://twitter.com/intent/tweet?text=I%20just%20visited%20${nbMonumentsSnapped}%20monument${nbMonumentsSnapped > 1 ? 's' : ''}%20in%20A%20Tourist%20In%20Paris,%20a%20%23js13k%20game%20by%20%40herebefrogs%20https%3A%2F%2Fgoo.gl%2FKPNCyr`, '_blank');
           break;
       }
   }
