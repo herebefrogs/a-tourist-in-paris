@@ -189,7 +189,7 @@ function render() {
       renderText('trying to cross iconic sightseeings from his bucket', 24, 80, '24px Arial', 'left');
       renderText('list before his tour bus departs.', 24, 120, '24px Arial', 'left');
       renderText('Arrow keys, WASD/ZQSD or swipe screen to move.', 24, 200, '24px Arial', 'left');
-      renderText('Touch all blinking red squares before time runs out.', 24, 240, '24px Arial', 'left');
+      renderText('Visit all blinking monuments before time runs out.', 24, 240, '24px Arial', 'left');
       if (Math.floor(currentTime/1000)%2) {
         renderText('Press any key or tap screen.', 24, 320, '24px Arial', 'left');
       }
@@ -213,15 +213,18 @@ function render() {
 
       const minutes = Math.floor(Math.ceil(timeLeft) / 60);
       const seconds = Math.ceil(timeLeft) - minutes * 60;
-      renderText(`${minutes}:${seconds <= 9 ? '0' : ''}${seconds}`,
+      renderText(`bus leaving in ${minutes}:${seconds <= 9 ? '0' : ''}${seconds}`,
                  WIDTH - 24, 40, '24px Arial', 'right');
+
+      renderText(`${nbMonumentsSnapped}/${nbMonuments} monuments visited`,
+                 24, 40, '24px Arial', 'left');
       break;
     case END_SCREEN:
       BUFFER_CTX.fillStyle = 'white';
       BUFFER_CTX.fillRect(0, 0, WIDTH, HEIGHT);
 
       renderText(`You ${winGame ? 'won' : 'lost'}!`, WIDTH / 2, 112, '64px Arial');
-      renderText(`${nbMonumentsSnapped} out of ${nbMonuments} sightseeings`, WIDTH / 2, HEIGHT / 2, '48px Arial');
+      renderText(`${nbMonumentsSnapped} out of ${nbMonuments} monuments`, WIDTH / 2, HEIGHT / 2, '48px Arial');
       renderText('press R to retry same level', WIDTH / 2, HEIGHT * 2 / 3);
       renderText('press N or tap screen to start new level', WIDTH / 2, HEIGHT * 2 / 3 + 40);
       renderText('press T to share your score on Twitter', WIDTH / 2, HEIGHT * 2 / 3 + 80);
