@@ -2,9 +2,26 @@
 
 My game entry for JS13K Games 2017 on the theme "Lost".
 
-# How to play
+# Goal
 
-Press ENTER to start the game, use the arrow keys or WASD (ZQSD with a French keyboard layout) to move around.
+Tourist: noun, /'toorəst/. Person geographically and culturally lost, trying to cross iconic monuments off his bucket list before his tour bus departs.
+
+You have 2 minutes to locate as many monuments as possible in Paris. (Given the game is unfinished, the tourist is the small blinking square, whereas the monuments are the big blinking squares, red if unvisited, green if visited).
+
+# Controls
+
+Move: arrow keys / WASD (Englih keybard) / ZQSD (French keyboard) / tap or swipe screen (think of screen as a D-Pad)
+
+Desktop and mobile.
+
+# Running the code
+
+Run the compressed version
+
+```bash
+npm install
+gulp serve
+```
 
 # Credits
 

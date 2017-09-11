@@ -209,7 +209,7 @@ function render() {
 
       renderText('tourist: person geographically and', 16, 32);
       renderText('culturally lost, trying to cross', 16, 56);
-      renderText('iconic monuments from his bucket', 16, 80);
+      renderText('iconic monuments off his bucket', 16, 80);
       renderText('list before his tour bus departs.', 16, 104);
 
       renderText('arrow keys, wasd/zqsd or tap', 16, 176);
