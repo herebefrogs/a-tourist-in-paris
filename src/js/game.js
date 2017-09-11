@@ -59,6 +59,16 @@ let startNewGame;
 let retryGame;
 let winGame;
 let timeLeft; // in seconds
+let colorTitleScreen = randRGB();
+let colorGoalScreen = randRGB();
+let colorEndScreen = randRGB();
+const ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789.:!-%,/';
+const ALIGN_LEFT = 0;
+const ALIGN_CENTER = 1;
+const ALIGN_RIGHT = 2;
+const CHARSET_SIZE = 8; // in px
+let charset = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAVgAAAAICAYAAAC8lecDAAACCUlEQVR42uVa2WoDMQxc6Fvf+v8fmzYlC5vFOmZGsl26EILjlSzrGMuKjq/Pjwf7OV6PN8/SIjJk56rWZOW5y4HKMqKx+GRs48mh0u/4ye6pgmdGP4osGVkRX2R1we7/KH4U/pn4YmX5HVjP+VLH/NUBZq0fjSvWj/iPADZLPxpbOoz0e3eoavoO+6weIzqq0i8yn/WN6J2Mbav2XwmwDO+TztKnLAcaAN0AdP39PwJshf7+6vwKgFxFjyQYUZx4vsHE1z0DrrSfArJeVukBYybDjw6aaH2TvsNBPANWAITF31Jk5gQe8RkZqAKAFYDdOQPsDlCGPuOjqH9E2R8aP1kAZeTP8MgCvOX/Ix4/W0vFf1WGGgFslEEjcRqt//bO7AymM4NlADACWJa/F4DeAXH/3jUDiwAIOQgr/MvSY8UV1rIhkoGyWSQLwKz9UZDx/OUE2ch/kAyRmWfsqwD42/zsK3ZnBsvUMGeXSBT9VK6fqfFVXHEjB1VrfKr+Vflml6CQOKjwP0U/1ywWATkU4NQSgZc0ePXaFDivchAlQHYIAPWKyAKs8ieX18nQVWNkr3AdAGvpb+cDgNGvmqFX2O8Jrl1XcGYeKT14QIrKLbUxrWzTQovYShsO2p4ys80IbbPJtrkorT9Mm47SBqTYv7tNqdsXojawqjaq7vnOEkG6pcrhk9nXiP834OoPrkvjIKMAAAAASUVORK5CYII=';
+
 
 function generateMap() {
   map = [];
@@ -159,6 +169,17 @@ function toggleLoop(value) {
   }
 };
 
+function loadImg(dataUri) {
+  return new Promise(function(resolve) {
+    var img = new Image();
+    // TODO try img.onload = function() {}
+    img.addEventListener('load', function() {
+      resolve(img);
+    })
+    img.src = dataUri;
+  });
+};
+
 // copy backbuffer onto visible canvas, scaling it to screen dimensions
 function blit() {
   CTX.drawImage(
@@ -171,27 +192,33 @@ function blit() {
 function render() {
   switch (screen) {
     case TITLE_SCREEN:
-      BUFFER_CTX.fillStyle = 'white';
+      BUFFER_CTX.fillStyle = colorTitleScreen;
       BUFFER_CTX.fillRect(0, 0, WIDTH, HEIGHT);
 
-      renderText('a Tourist in Paris', WIDTH / 2, 112, '64px Arial');
+      renderText('a tourist in paris', WIDTH / 2, 112, ALIGN_CENTER, 4);
       if (Math.floor(currentTime/1000)%2) {
-        renderText('press N or tap screen to start', WIDTH / 2, HEIGHT / 2);
+        renderText('press n or tap screen to start', WIDTH / 2, HEIGHT / 2, ALIGN_CENTER);
       }
-      renderText('proudly made in Canada', WIDTH / 2, HEIGHT - 80);
-      renderText('by Jerome Lecomte for JS13KGAMES 2017', WIDTH / 2, HEIGHT - 48);
+      renderText('proudly made in canada', WIDTH / 2, HEIGHT - 80, ALIGN_CENTER);
+      renderText('by jerome lecomte', WIDTH / 2, HEIGHT - 56, ALIGN_CENTER);
+      renderText('for js13kgames 2017', WIDTH / 2, HEIGHT - 32, ALIGN_CENTER);
       break;
     case GOAL_SCREEN:
-      BUFFER_CTX.fillStyle = 'white';
+      BUFFER_CTX.fillStyle = colorGoalScreen;
       BUFFER_CTX.fillRect(0, 0, WIDTH, HEIGHT);
 
-      renderText('Tourist: person geographically and culturally lost,', 24, 40, '24px Arial', 'left');
-      renderText('trying to cross iconic sightseeings from his bucket', 24, 80, '24px Arial', 'left');
-      renderText('list before his tour bus departs.', 24, 120, '24px Arial', 'left');
-      renderText('Arrow keys, WASD/ZQSD or swipe screen to move.', 24, 200, '24px Arial', 'left');
-      renderText('Visit all blinking monuments before time runs out.', 24, 240, '24px Arial', 'left');
+      renderText('tourist: person geographically and', 16, 32);
+      renderText('culturally lost, trying to cross', 16, 56);
+      renderText('iconic monuments from his bucket', 16, 80);
+      renderText('list before his tour bus departs.', 16, 104);
+
+      renderText('arrow keys, wasd/zqsd or tap', 16, 176);
+      renderText('screen to move.', 16, 200);
+      renderText('visit all blinking monuments', 16, 224);
+      renderText('before time runs out.', 16, 248);
+
       if (Math.floor(currentTime/1000)%2) {
-        renderText('Press any key or tap screen.', 24, 320, '24px Arial', 'left');
+        renderText('press any key or tap screen.', 16, 320);
       }
       break;
     case GAME_SCREEN:
@@ -214,20 +241,21 @@ function render() {
       const minutes = Math.floor(Math.ceil(timeLeft) / 60);
       const seconds = Math.ceil(timeLeft) - minutes * 60;
       renderText(`bus leaving in ${minutes}:${seconds <= 9 ? '0' : ''}${seconds}`,
-                 WIDTH - 24, 40, '24px Arial', 'right');
+                 WIDTH - 16, 32, ALIGN_RIGHT);
 
       renderText(`${nbMonumentsSnapped}/${nbMonuments} monuments visited`,
-                 24, 40, '24px Arial', 'left');
+                 16, HEIGHT - 32);
       break;
     case END_SCREEN:
-      BUFFER_CTX.fillStyle = 'white';
+      BUFFER_CTX.fillStyle = colorEndScreen;
       BUFFER_CTX.fillRect(0, 0, WIDTH, HEIGHT);
 
-      renderText(`You ${winGame ? 'won' : 'lost'}!`, WIDTH / 2, 112, '64px Arial');
-      renderText(`${nbMonumentsSnapped} out of ${nbMonuments} monuments`, WIDTH / 2, HEIGHT / 2, '48px Arial');
-      renderText('press R to retry same level', WIDTH / 2, HEIGHT * 2 / 3);
-      renderText('press N or tap screen to start new level', WIDTH / 2, HEIGHT * 2 / 3 + 40);
-      renderText('press T to share your score on Twitter', WIDTH / 2, HEIGHT * 2 / 3 + 80);
+      renderText(`you ${winGame ? 'won' : 'lost'}!`, WIDTH / 2, 112, ALIGN_CENTER, 4);
+      renderText(`${nbMonumentsSnapped} out of ${nbMonuments}`, WIDTH / 2, HEIGHT / 2 - 32, ALIGN_CENTER, 3);
+      renderText(`monuments visited`, WIDTH / 2, HEIGHT / 2, ALIGN_CENTER, 3);
+      renderText('press r to retry same level', WIDTH / 2, HEIGHT * 2 / 3, ALIGN_CENTER);
+      renderText('press n to start new level', WIDTH / 2, HEIGHT * 2 / 3 + 32, ALIGN_CENTER);
+      renderText('press t to tweet your score', WIDTH / 2, HEIGHT * 2 / 3 + 56, ALIGN_CENTER);
       break;
   }
 
@@ -252,12 +280,21 @@ function renderEntity(entity, ctx = BUFFER_CTX) {
                entity[INDEX_W] + 2*outline, entity[INDEX_H] + 2*outline);
 }
 
-function renderText(msg, x, y, font = '24px Arial', align = 'center', color = 'black') {
-  BUFFER_CTX.fillStyle = color;
-  BUFFER_CTX.font = font;
-  BUFFER_CTX.textAlign = align;
-  BUFFER_CTX.fillText(msg, x, y);
-}
+function renderText(msg, x, y, align = ALIGN_LEFT, scale = 2) {
+  const SCALED_SIZE = scale * CHARSET_SIZE;
+  const MSG_WIDTH = msg.length * (SCALED_SIZE);
+  const ALIGN_OFFSET = align === ALIGN_RIGHT ? MSG_WIDTH :
+                       align === ALIGN_CENTER ? MSG_WIDTH / 2 :
+                       0;
+  for (let i = 0; i < msg.length; i++) {
+    BUFFER_CTX.drawImage(
+      charset,
+      // TODO could memoize the characters index or hardcode a lookup table
+      ALPHABET.indexOf(msg[i])*CHARSET_SIZE, 0, CHARSET_SIZE, CHARSET_SIZE,
+      x + i*(SCALED_SIZE) - ALIGN_OFFSET, y, SCALED_SIZE, SCALED_SIZE
+    );
+  };
+};
 
 function setPlayerPosition(elapsedTime) {
   const distance = elapsedTime * player[INDEX_SPEED];
@@ -396,6 +433,7 @@ function resetGame() {
   winGame = false;
   retryGame = false;
   timeLeft = LEVEL_TIME;
+  colorEndScreen = randRGB();
   screen = GAME_SCREEN;
 }
 
@@ -440,7 +478,10 @@ onload = function(e) {
 
   onresize();
 
-  toggleLoop(true);
+  loadImg(charset).then(function(img) {
+    charset = img;
+    toggleLoop(true);
+  });
 };
 
 document.onvisibilitychanged = function(e) {

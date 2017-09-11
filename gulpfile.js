@@ -131,7 +131,7 @@ gulp.task('report', ['zip'], function() {
 gulp.task('encode', function()  {
 
   var assets = [
-    { image: 'img/tileset.png', property: 'tileset' },
+    // { image: 'img/tileset.png', property: 'tileset' },
     { image: 'img/charset.png', property: 'charset' }
   ];
 
