@@ -254,8 +254,8 @@ function render() {
       renderText(`${nbMonumentsSnapped} out of ${nbMonuments}`, WIDTH / 2, HEIGHT / 2 - 32, ALIGN_CENTER, 3);
       renderText(`monuments visited`, WIDTH / 2, HEIGHT / 2, ALIGN_CENTER, 3);
       renderText('press r to retry same level', WIDTH / 2, HEIGHT * 2 / 3, ALIGN_CENTER);
-      renderText('press n to start new level', WIDTH / 2, HEIGHT * 2 / 3 + 32, ALIGN_CENTER);
-      renderText('press t to tweet your score', WIDTH / 2, HEIGHT * 2 / 3 + 56, ALIGN_CENTER);
+      renderText('press n to start new level', WIDTH / 2, HEIGHT * 2 / 3 + 24, ALIGN_CENTER);
+      renderText('press t to tweet your score', WIDTH / 2, HEIGHT * 2 / 3 + 48, ALIGN_CENTER);
       break;
   }
 
