@@ -8,13 +8,19 @@ const GAME_SCREEN = 2;
 const END_SCREEN = 3;
 let screen = TITLE_SCREEN;
 
-const PLAYER_SIZE = 20; // in px
-const BLOCK_SIZE = 80; // in px (size of a building)
-const PLATE_SIZE = BLOCK_SIZE * 3; // in px (3x3 blocks in a plate)
+const DIFFICULTY_EASY = 1;
+const DIFFICULTY_MEDIUM = 2;
+const DIFFICULTY_HARD = 3;
+let difficulty = DIFFICULTY_HARD; // default for mobile
+
+let PLAYER_SIZE; // in px
+let BLOCK_SIZE; // in px (size of a building)
+let PLATE_SIZE; // in px (3x3 blocks in a plate)
+let OUTLINES; // array of pixels
 const MAP_WIDTH = 14; // in plates
 const MAP_HEIGHT = 10; // in plates
 
-const OFFSET_BOUND = 200; // px, offset from side of visible screen that moves the viewport if player goes beyond
+let OFFSET_BOUND; // px, offset from side of visible screen that moves the viewport if player goes beyond
 let bufferOffsetX = 0;
 let bufferOffsetY = 0;
 
@@ -43,14 +49,14 @@ const INDEX_MOVEDOWN = 6;  // for player
 const INDEX_MOVELEFT = 7
 const INDEX_MOVERIGHT = 8;
 const INDEX_SPEED = 9;
-const PLAYER_SPEED = 200; // px/s
+let PLAYER_SPEED; // px/s
 const ROAD_TOP = 1;
 const ROAD_RIGHT = 2;
 const ROAD_BOTTOM = 4;
 const ROAD_LEFT = 8;
 const PLATE_MONUMENT = 31;
 const LEVEL_TIME = 120; // in seconds
-let player = [BLOCK_SIZE, BLOCK_SIZE, PLAYER_SIZE, PLAYER_SIZE, 'blue', 0, 0, 0, 0, PLAYER_SPEED];
+let player;
 let entities;
 let map;
 let nbMonuments;
@@ -197,7 +203,9 @@ function render() {
 
       renderText('a tourist in paris', WIDTH / 2, 112, ALIGN_CENTER, 4);
       if (Math.floor(currentTime/1000)%2) {
-        renderText('press n or tap screen to start', WIDTH / 2, HEIGHT / 2, ALIGN_CENTER);
+        renderText('press e for easy', WIDTH / 2, HEIGHT / 2, ALIGN_CENTER);
+        renderText('m for medium, h for hard', WIDTH / 2, HEIGHT / 2 + 24, ALIGN_CENTER);
+        renderText('or tap screen to start', WIDTH / 2, HEIGHT / 2 + 48, ALIGN_CENTER);
       }
       renderText('proudly made in canada', WIDTH / 2, HEIGHT - 80, ALIGN_CENTER);
       renderText('by jerome lecomte', WIDTH / 2, HEIGHT - 56, ALIGN_CENTER);
@@ -277,7 +285,7 @@ function renderEntity(entity, ctx = BUFFER_CTX) {
   ctx.fillStyle = entity[INDEX_COLOR];
   const x = entity[INDEX_X] - (entity === player ? bufferOffsetX: 0);
   const y = entity[INDEX_Y] - (entity === player ? bufferOffsetY: 0);
-  var outline = (entity !== player && map[entity[INDEX_MAP_INDEX]] !== PLATE_MONUMENT) ? choice([0, 1, 2, 3, 4, 5]) : 0;
+  var outline = (entity !== player && map[entity[INDEX_MAP_INDEX]] !== PLATE_MONUMENT) ? choice(OUTLINES) : 0;
   ctx.fillRect(Math.round(x - outline), Math.round(y - outline),
                entity[INDEX_W] + 2*outline, entity[INDEX_H] + 2*outline);
 }
@@ -413,7 +421,30 @@ function checkVictoryAndGameOver() {
   }
 }
 
+function setConstants() {
+  PLAYER_SIZE = (difficulty === DIFFICULTY_EASY) ? 10 :
+                (difficulty === DIFFICULTY_MEDIUM) ? 15 :
+                20;
+  BLOCK_SIZE = (difficulty === DIFFICULTY_EASY) ? 20 :
+               (difficulty === DIFFICULTY_MEDIUM) ? 40 :
+               80;
+  PLATE_SIZE = BLOCK_SIZE * 3;
+  BG.width = MAP_WIDTH * PLATE_SIZE;
+  BG.height = MAP_HEIGHT * PLATE_SIZE;
+  OFFSET_BOUND = (difficulty === DIFFICULTY_EASY) ? 100:
+                 (difficulty === DIFFICULTY_MEDIUM) ? 150 :
+                 200;
+  PLAYER_SPEED = (difficulty === DIFFICULTY_EASY) ? 100:
+                 (difficulty === DIFFICULTY_MEDIUM) ? 150 :
+                 200;
+  player = [BLOCK_SIZE, BLOCK_SIZE, PLAYER_SIZE, PLAYER_SIZE, 'blue', 0, 0, 0, 0, PLAYER_SPEED];
+  OUTLINES = (difficulty === DIFFICULTY_EASY) ? [0, 1, 2]:
+             (difficulty === DIFFICULTY_MEDIUM) ? [0, 1, 2, 3] :
+             [0, 1, 2, 3, 4, 5]
+}
+
 function newGame() {
+  setConstants(difficulty);
   generateMap();
   generateEntities();
   renderMap();
@@ -474,8 +505,6 @@ function update(elapsedTime) {
 onload = function(e) {
   document.title = 'A Tourist in Paris';
 
-  BG.width = MAP_WIDTH * PLATE_SIZE;
-  BG.height = MAP_HEIGHT * PLATE_SIZE;
   BUFFER.width = WIDTH;
   BUFFER.height = HEIGHT;
 
@@ -541,9 +570,18 @@ onkeyup = function(e) {
   e.preventDefault();
   switch (screen) {
     case TITLE_SCREEN:
+      console.log(e.which);
       switch (e.which) {
-        case 13: // Enter
-        case 78: // N
+        case 69: // E
+          difficulty = DIFFICULTY_EASY;
+          screen = GOAL_SCREEN;
+          break;
+        case 77: // M
+          difficulty = DIFFICULTY_MEDIUM;
+          screen = GOAL_SCREEN;
+          break;
+        case 72: // H
+          difficulty = DIFFICULTY_HARD;
           screen = GOAL_SCREEN;
           break;
       }
