@@ -224,7 +224,9 @@ function render() {
     case GAME_SCREEN:
       for (let entity of entities) {
         if (map[entity[INDEX_MAP_INDEX]] === PLATE_MONUMENT) {
-          entity[INDEX_COLOR] = entity[INDEX_VISITED] ? randG() : randR();
+          if (!entity[INDEX_VISITED]) {
+            entity[INDEX_COLOR] = randR();
+          }
           renderEntity(entity, BG_CTX);
         }
       }
@@ -380,6 +382,7 @@ function checkMonument(entity) {
   if (map[entity[INDEX_MAP_INDEX]] === PLATE_MONUMENT &&
       !entity[INDEX_VISITED]) {
     entity[INDEX_VISITED] = true;
+    entity[INDEX_COLOR] = randG();
     nbMonumentsSnapped++;
   }
 }
