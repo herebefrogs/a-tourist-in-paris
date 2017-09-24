@@ -687,8 +687,8 @@ function pointer_location(e) {
 };
 
 function tapToKeyInput(x, y) {
-  let dx = (x - centerX) / centerX;
-  let dy = (y - centerY) / centerY;
+  let dx = (x < centerX ? -1 : 1) * Math.sqrt(Math.abs((x - centerX) / centerX));
+  let dy = (y < centerY ? -1 : 1) * Math.sqrt(Math.abs((y - centerY) / centerY));
   player[INDEX_MOVELEFT] = Math.min(dx, 0);
   player[INDEX_MOVERIGHT] = Math.max(dx, 0);
   player[INDEX_MOVEUP] = Math.min(dy, 0);
