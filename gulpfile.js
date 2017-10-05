@@ -2,15 +2,15 @@
 // https://github.com/eoinmcg/roboflip
 
 var babel = require('gulp-babel'),
-    buffer = require('vinyl-buffer')
+    browserSync = require('browser-sync').create(),
+    buffer = require('vinyl-buffer'),
     cheerio = require('cheerio'),
     concat = require('gulp-concat'),
-    connect = require('gulp-connect'),
     fs = require('fs'),
     gulp = require('gulp'),
     gutil = require('gulp-util'),
     htmlmin = require('gulp-htmlmin'),
-    rimraf = require('gulp-rimraf'),
+    rimraf = require('rimraf'),
     rename = require('gulp-rename'),
     replace = require('gulp-replace'),
     rollup = require('rollup-stream'),
@@ -21,44 +21,34 @@ var babel = require('gulp-babel'),
     exclude_min = [ /* 'js/jsfxr.min.js' */],
     config = { js: [] };
 
-
 gulp.task('build', ['clean', 'jsmin', 'inlinejs', 'zip', 'report']);
 
-gulp.task('watch', function() {
-  gulp.watch(['./src/*.html', './src/js/*.js'], ['reload']);
+gulp.task('reload', ['build'], function() {
+  // TODO figure out a way to reload after 'jsmin', but still have 'report' going after that
+  browserSync.reload();
 });
 
-gulp.task('reload', ['report'], function() {
-  gulp.src('./src/*.html')
-    .pipe(connect.reload());
-})
-
-gulp.task('connect', ['build'], function() {
-  connect.server({
-    livereload: true,
-    root: ['build', 'src']
+gulp.task('serve', ['build'], function() {
+  browserSync.init({
+    server: ['build', 'src']
   });
+  gulp.watch(['src/*.html', 'src/js/*.js'], ['reload']);
 });
 
-gulp.task('serve', ['connect', 'watch']);
 
-gulp.task('clean', function() {
-  // delete prev files
-  gulp.src('dist/*')
-    .pipe(rimraf())
-
-  return gulp.src('build/*')
-        .pipe(rimraf());
+gulp.task('clean', function(done) {
+  rimraf.sync('build/');
+  rimraf('dist/', done);
 });
 
 gulp.task('jsmin', ['clean'], function() {
 
   // rollup converts imported ES6 modules into ES5 functions with tree-shaking
   return rollup({
-      entry: './src/js/game.js',
+      input: 'src/js/game.js',
       // wrap global variables/functions into in IIFE so uglify will rename them
       format: 'iife',
-      sourceMap: true
+      sourcemap: true
     })
     .pipe(source('game.js', './src'))
     .pipe(buffer())
@@ -95,6 +85,9 @@ gulp.task('inlinejs', ['jsmin'], function() {
   return gulp.src('./src/index.html')
     .pipe(replace(/<script.*>(.|\n)*<\/script>/i, function() { return '<script>'+extra_js+' '+js+'</script>' }))
     .pipe(htmlmin({collapseWhitespace: true}))
+    // strip the <body> tag inserted by htmlmin, browsers give this tag for free
+    .pipe(replace(/<body>/, ''))
+    .pipe(replace(/<\/body>/, ''))
     .pipe(gulp.dest('./dist'))
 
 });
