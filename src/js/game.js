@@ -2,6 +2,8 @@ import {rand, choice, randRGB, randR, randG} from './utils';
 
 // globals
 
+const w = window;
+
 const TITLE_SCREEN = 0;
 const GOAL_SCREEN = 1;
 const GAME_SCREEN = 2;
@@ -520,7 +522,7 @@ document.onvisibilitychanged = function(e) {
   toggleLoop(!e.target.hidden);
 };
 
-onresize = onrotate = function() {
+onresize = w.onrotate = function() {
   // scale canvas to fit screen while maintaining aspect ratio
   const scaleToFit = Math.min(innerWidth / WIDTH, innerHeight / HEIGHT);
   c.width = WIDTH * scaleToFit;
@@ -638,7 +640,7 @@ let centerY;
 // on platform that support both (duplicate event, could be filtered
 // with timestamp maybe? or listener only installed if supported?
 // pointer > mouse || touch)
-ontouchstart = onpointerdown = function(e) {
+w.ontouchstart = w.onpointerdown = function(e) {
   e.preventDefault();
   tapped = true;
   switch (screen) {
@@ -649,7 +651,7 @@ ontouchstart = onpointerdown = function(e) {
   }
 };
 
-ontouchmove = onpointermove = function(e) {
+w.ontouchmove = w.onpointermove = function(e) {
   e.preventDefault();
   switch (screen) {
     case GAME_SCREEN:
@@ -661,7 +663,7 @@ ontouchmove = onpointermove = function(e) {
   }
 }
 
-ontouchend = onpointerup = function(e) {
+w.ontouchend = w.onpointerup = function(e) {
   e.preventDefault();
   tapped = false;
   switch (screen) {

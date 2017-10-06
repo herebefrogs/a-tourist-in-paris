@@ -1,22 +1,16 @@
 // heavily based on Eoin McGrath's Roboflip gulpfile
 // https://github.com/eoinmcg/roboflip
 
-var babel = require('gulp-babel'),
+var babel = require('rollup-plugin-babel'),
     browserSync = require('browser-sync').create(),
-    buffer = require('vinyl-buffer'),
-    cheerio = require('cheerio'),
-    concat = require('gulp-concat'),
     fs = require('fs'),
     gulp = require('gulp'),
-    gutil = require('gulp-util'),
     htmlmin = require('gulp-htmlmin'),
     rimraf = require('rimraf'),
-    rename = require('gulp-rename'),
     replace = require('gulp-replace'),
-    rollup = require('rollup-stream'),
-    source = require('vinyl-source-stream'),
-    sourcemaps = require('gulp-sourcemaps'),
-    uglify = require('gulp-uglify'),
+    resolve = require('rollup-plugin-node-resolve'),
+    rollup = require('rollup').rollup,
+    uglify = require('rollup-plugin-uglify'),
     zip = require('gulp-zip'),
     exclude_min = [ /* 'js/jsfxr.min.js' */],
     config = { js: [] };
@@ -41,29 +35,34 @@ gulp.task('clean', function(done) {
   rimraf('dist/', done);
 });
 
-gulp.task('jsmin', ['clean'], function() {
+gulp.task('jsmin', ['clean'], async function() {
 
   // rollup converts imported ES6 modules into ES5 functions with tree-shaking
-  return rollup({
-      input: 'src/js/game.js',
-      // wrap global variables/functions into in IIFE so uglify will rename them
-      format: 'iife',
-      sourcemap: true
-    })
-    .pipe(source('game.js', './src'))
-    .pipe(buffer())
-    .pipe(sourcemaps.init({ loadMaps: true}))
-    // babels convert ES6 down to ES5
-    .pipe(babel({
-       presets: ['es2015']
-     }))
-    // uglify shrinks JS code down
-    .pipe(uglify())
-    // drop strict mode to allow the use of onresize=onrotate=... but that throws off the sourcemaps by 2 lines
-    .pipe(replace('"use strict";', ''))
-    .pipe(replace("'use strict';", ''))
-    .pipe(sourcemaps.write('.'))
-    .pipe(gulp.dest('./build/js/'));
+  const bundle = await rollup({
+    input: 'src/js/game.js',
+    plugins: [
+      resolve(),
+      // babels convert ES6 down to ES5
+      babel({
+        presets: [
+          [
+            'es2015', {
+              modules: false
+            }
+          ]
+        ],
+        plugins: ['external-helpers']
+      }),
+      // uglify shrinks JS code down
+      uglify()
+    ]
+  });
+  await bundle.write({
+    file: 'build/js/game.js',
+    // wrap global variables/functions into in IIFE so uglify will rename them
+    format: 'iife',
+    sourcemap: true
+  });
 });
 
 gulp.task('inlinejs', ['jsmin'], function() {
