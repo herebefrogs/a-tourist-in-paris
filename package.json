@@ -2,10 +2,11 @@
   "name": "js13kgames-2017",
   "version": "1.0.0",
   "description": "JS13K Games 2017 entry on theme 'Lost'",
-  "main": "gulpfile.js",
+  "main": "script/build.js",
   "scripts": {
-    "start": "gulp serve",
-    "prepublish": "gulp build"
+    "start": "node scripts/build.js --watch",
+    "build": "node scripts/build.js",
+    "tinify-pngs": "node scripts/tinify-pngs.js"
   },
   "repository": {
     "type": "git",
@@ -14,18 +15,13 @@
   "author": "Jerome Lecomte <jerome@herebefrogs.com>",
   "license": "MIT",
   "devDependencies": {
-    "babel-core": "^6.26.0",
-    "babel-plugin-external-helpers": "^6.22.0",
-    "babel-preset-es2015": "^6.18.0",
-    "browser-sync": "^2.18.13",
-    "gulp": "^3.9.1",
-    "gulp-htmlmin": "^3.0.0",
-    "gulp-replace": "^0.5.4",
-    "gulp-zip": "^3.2.0",
-    "rimraf": "^2.6.2",
-    "rollup": "^0.50.0",
-    "rollup-plugin-babel": "^3.0.2",
-    "rollup-plugin-node-resolve": "^3.0.0",
-    "rollup-plugin-uglify": "^2.0.1"
+    "browser-sync": "^2.26.7",
+    "htmlmin": "0.0.7",
+    "rollup": "^0.57.1",
+    "terser": "^3.8.1",
+    "tinify": "^1.6.0-beta.2"
+  },
+  "dependencies": {
+    "npm": "^6.10.1"
   }
 }

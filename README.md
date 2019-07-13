@@ -20,7 +20,7 @@ Run the compressed version
 
 ```bash
 npm install
-gulp serve
+npm start
 ```
 
 # Credits
