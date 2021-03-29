@@ -1,3 +1,5 @@
+import { loadImg } from './utils';
+
 // available alphabet (must match characters in the alphabet sprite exactly)
 // U = up arrow
 // D = down arrow
@@ -15,7 +17,7 @@ import CHARSET from '../img/charset.webp';
 export const CHARSET_SIZE = 8; // in px
 let charset;
 
-export const initCharset = async loadImg => {
+export const initCharset = async () => {
   charset = await loadImg(CHARSET);
 }
 
@@ -28,9 +30,9 @@ export const initCharset = async loadImg => {
  * @param {*} align 
  * @param {*} scale 
  */
-export function renderText(msg, ctx, x, y, align = ALIGN_LEFT, scale = 1) {
+export function renderText(msg, ctx, x, y, align = ALIGN_LEFT, scale = 2) {
   const SCALED_SIZE = scale * CHARSET_SIZE;
-  const MSG_WIDTH = msg.length * (scale + SCALED_SIZE);
+  const MSG_WIDTH = msg.length * (SCALED_SIZE + 1) - 1;
   const ALIGN_OFFSET = align === ALIGN_RIGHT ? MSG_WIDTH :
                        align === ALIGN_CENTER ? MSG_WIDTH / 2 :
                        0;

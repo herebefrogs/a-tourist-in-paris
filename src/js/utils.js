@@ -46,3 +46,33 @@ export function smoothLerpArray(values, t) {
   const delta = t * (values.length - 1) - start;
   return lerp(min, max, delta);
 }
+
+function randChannel() {
+  return rand(1, 14).toString(16);
+};
+
+export function randRGB() {
+  return `#${randChannel()}${randChannel()}${randChannel()}`;
+};
+
+export function randR() {
+  return `#${randChannel()}00`;
+};
+
+export function randG() {
+  return `#0${randChannel()}0`;
+};
+
+export function randB() {
+  return `#00${randChannel()}`;
+};
+
+export function loadImg(dataUri) {
+  return new Promise(function(resolve) {
+    var img = new Image();
+    img.onload = function() {
+      resolve(img);
+    };
+    img.src = dataUri;
+  });
+};

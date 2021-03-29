@@ -1,15 +1,8 @@
-game engine
-===========
-- lerp-smoothing?
-- gamepad support?
-- tinyfont.js? https://github.com/darkwebdev/tinyfont.js
-- support multiple voices for speech synthesis?
-
-build chain
-===========
-custom:
-- replace all the global variables by arguments with default value of the IIFE (e.g. const foo = 'bar' => (foo = 'bar') => { ... })
-libs:
-- ECT (https://github.com/fhanau/Efficient-Compression-Tool) in place of AdvZip? no Homebrew build for Mac :(
-- avif in place of png/webp (not enough browser support yet)
+game
+====
+- generate the map with a PRNG, adding the seed in the URL and Tweet so it can be reattempted
+- konami code to enable bubbly mode? (outline refreshed on every render)
+- add a blue bus to reach before the countdown
+- improve map, making sure everything is always accessible (no bus or monument in an island)
+- clean up imports
 

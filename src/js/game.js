@@ -1,74 +1,69 @@
 import { isMobile } from './mobile';
 import { checkMonetization } from './monetization';
-import { loadSongs, playSound, playSong } from './sound';
-import { initSpeech } from './speech';
 import { save, load } from './storage';
 import { ALIGN_LEFT, ALIGN_CENTER, ALIGN_RIGHT, CHARSET_SIZE, initCharset, renderText } from './text';
-import { lerp, rand } from './utils';
-import TILESET from '../img/tileset.webp';
+import { choice, lerp, randRGB, randG, randR } from './utils';
 
-
-const konamiCode = [38, 38, 40, 40, 37, 39, 37, 39, 66, 65];
-let konamiIndex = 0;
 
 // GAMEPLAY VARIABLES
 
 const TITLE_SCREEN = 0;
-const GAME_SCREEN = 1;
-const END_SCREEN = 2;
+const GOAL_SCREEN = 1;
+const GAME_SCREEN = 2;
+const END_SCREEN = 3;
 let screen = TITLE_SCREEN;
 
 // factor by which to reduce both moveX and moveY when player moving diagonally
 // so they don't seem to move faster than when traveling vertically or horizontally
 const RADIUS_ONE_AT_45_DEG = Math.cos(Math.PI / 4);
-const STEERING_DURATION = 150;                // in millis, duration till going full left or right
+// TODO rename
+const FULL_ACCELERATION_DURATION = 200;                // in millis, duration till going full left or right
+
+let difficulty;
+const DIFFICULTY_EASY = 0;
+const DIFFICULTY_MEDIUM = 1;
+const DIFFICULTY_HARD = 2;
 
 let countdown; // in seconds
 let hero;
 let entities;
-
-let speak;
+let winGame;
+let nbMonuments;
+let nbMonumentsSnapped;
+const MONUMENT = 'monument';
 
 // RENDER VARIABLES
 
 const CTX = c.getContext('2d');         // visible canvas
 const MAP = c.cloneNode();              // full map rendered off screen
 const MAP_CTX = MAP.getContext('2d');
-MAP.width = 640;                        // map size
-MAP.height = 480;
 const VIEWPORT = c.cloneNode();           // visible portion of map/viewport
 const VIEWPORT_CTX = VIEWPORT.getContext('2d');
-VIEWPORT.width = 320;                      // viewport size
-VIEWPORT.height = 240;
+VIEWPORT.width = 640;                      // viewport size
+VIEWPORT.height = 480;
+
+let monuments;
+let colorTitleScreen;
+let colorGoalScreen;
+let colorEndScreen;
+let OUTLINES; // array of pixels
+let PLAYER_SIZE; // in px
+let BLOCK_SIZE; // in px (size of a building)
+let PLATE_SIZE; // in px (3x3 blocks in a plate)
+const MAP_WIDTH = 14; // in plates
+const MAP_HEIGHT = 10; // in plates
+const ROAD_TOP = 1;
+const ROAD_RIGHT = 2;
+const ROAD_BOTTOM = 4;
+const ROAD_LEFT = 8;
 
 // camera-window & edge-snapping settings
-const CAMERA_WINDOW_X = 100;
-const CAMERA_WINDOW_Y = 50;
-const CAMERA_WINDOW_WIDTH = VIEWPORT.width - CAMERA_WINDOW_X;
-const CAMERA_WINDOW_HEIGHT = VIEWPORT.height - CAMERA_WINDOW_Y;
+let CAMERA_WINDOW_X;
+let CAMERA_WINDOW_Y;
+let CAMERA_WINDOW_WIDTH;
+let CAMERA_WINDOW_HEIGHT;
 let viewportOffsetX = 0;
 let viewportOffsetY = 0;
-
-const ATLAS = {
-  hero: {
-    move: [
-      { x: 0, y: 0, w: 16, h: 18 },
-      { x: 16, y: 0, w: 16, h: 18 },
-      { x: 32, y: 0, w: 16, h: 18 },
-      { x: 48, y: 0, w: 16, h: 18 },
-      { x: 64, y: 0, w: 16, h: 18 },
-    ],
-    speed: 100,
-  },
-  foe: {
-    'move': [
-      { x: 0, y: 0, w: 16, h: 18 },
-    ],
-    speed: 0,
-  },
-};
-const FRAME_DURATION = 0.1; // duration of 1 animation frame, in seconds
-let tileset;   // characters sprite, embedded as a base64 encoded dataurl by build script
 
 // LOOP VARIABLES
 
@@ -83,128 +78,360 @@ let running = true;
 function unlockExtraContent() {
 }
 
+function generateMapAndEntities() {
+  // step 1: determine general layout of city streets by connecting LEGO-like plates (made of 3x3 blocks)
+  // e.g.   _ _ _                                 _ _ _
+  //       |x|x|x|                               |x| |x|
+  //       |_   _| T shaped intersection         |_   _| + crossing intersection
+  //       |x|_|x|                               |x|_|x|
+  //
+  //        _ _ _                                 _ _ _
+  //       |x|x|x|                               |x|x|x|
+  //       |_ _ _| straight line                 |_  |x| left turn
+  //       |x|x|x|                               |x|_|x|
+  //
+  const map = [];
+  let plate;
+  for (let i = 0; i < MAP_WIDTH * MAP_HEIGHT; i++) {
+    if (i === 0) {
+      // turn in top left corner
+      plate = ROAD_RIGHT + ROAD_BOTTOM;
+    } else if (i === MAP_WIDTH - 1) {
+      // turn in top right corner
+      plate = ROAD_LEFT + ROAD_BOTTOM;
+    } else if (i === MAP_WIDTH * (MAP_HEIGHT - 1)) {
+      // turn in bottom left corner
+      plate = ROAD_RIGHT + ROAD_TOP;
+    } else if (i === MAP_WIDTH * MAP_HEIGHT - 1) {
+      // turn in bottom right corner
+      plate = ROAD_LEFT + ROAD_TOP;
+    } else if (i < MAP_WIDTH - 1) {
+      // horizontal road or T road at the top edge of the map
+      plate = choice([
+        ROAD_LEFT + ROAD_RIGHT,
+        ROAD_LEFT + ROAD_BOTTOM + ROAD_RIGHT
+      ]);
+    } else if (MAP_WIDTH * (MAP_HEIGHT - 1) < i) {
+      // horizontal road or upside down T road at the bottom edge of the map
+      plate = choice([
+        ROAD_LEFT + ROAD_RIGHT,
+        ROAD_LEFT + ROAD_TOP + ROAD_RIGHT
+      ]);
+    } else if (!(i % MAP_WIDTH)) {
+      // vertical road or |- road at the left edge of the map
+      plate = choice([
+        ROAD_TOP + ROAD_BOTTOM,
+        ROAD_TOP + ROAD_RIGHT + ROAD_BOTTOM
+      ]);
+    } else if (i % MAP_WIDTH === MAP_WIDTH - 1) {
+      // vertical road or -| road at the right edge of the map
+      plate = choice([
+        ROAD_TOP + ROAD_BOTTOM,
+        ROAD_TOP + ROAD_LEFT + ROAD_BOTTOM
+      ]);
+    } else {
+      plate = choice([
+        ROAD_LEFT + ROAD_TOP + ROAD_RIGHT + ROAD_BOTTOM,
+        ROAD_TOP + ROAD_LEFT + ROAD_BOTTOM,
+        ROAD_TOP + ROAD_RIGHT + ROAD_BOTTOM,
+        ROAD_LEFT + ROAD_TOP + ROAD_RIGHT,
+        ROAD_LEFT + ROAD_BOTTOM + ROAD_RIGHT,
+        ROAD_TOP + ROAD_BOTTOM,
+        ROAD_LEFT + ROAD_RIGHT,
+        MONUMENT
+      ]);
+    }
+    map[i] = plate;
+  }
+
+  // step 2: convert the full blocks of each plate into entities
+  entities = [];
+  for (let i = 0; i < MAP_WIDTH * MAP_HEIGHT; i++) {
+    const x = i % MAP_WIDTH;
+    const y = (i - x) / MAP_WIDTH;
+    if (map[i] === MONUMENT) {
+      entities.push(
+        createEntity(
+          x * PLATE_SIZE + BLOCK_SIZE,
+          y * PLATE_SIZE + BLOCK_SIZE,
+          BLOCK_SIZE,
+          randR(),
+          MONUMENT
+        )
+      );
+      continue;
+    }
+    // corner blocks are on all plates
+    entities.push(
+      createEntity(
+        x * PLATE_SIZE,
+        y * PLATE_SIZE,
+        BLOCK_SIZE,
+        randRGB()
+      )
+    );
+    entities.push(
+      createEntity(
+        x * PLATE_SIZE + 2 * BLOCK_SIZE,
+        y * PLATE_SIZE,
+        BLOCK_SIZE,
+        randRGB()
+      )
+    );
+    entities.push(
+      createEntity(
+        x * PLATE_SIZE,
+        y * PLATE_SIZE + 2 * BLOCK_SIZE,
+        BLOCK_SIZE,
+        randRGB()
+      )
+    );
+    entities.push(
+      createEntity(
+        x * PLATE_SIZE + 2 * BLOCK_SIZE,
+        y * PLATE_SIZE + 2 * BLOCK_SIZE,
+        BLOCK_SIZE,
+        randRGB()
+      )
+    );
+    if (!(map[i] & ROAD_TOP)) {
+      entities.push(
+      createEntity(
+          x * PLATE_SIZE + BLOCK_SIZE,
+          y * PLATE_SIZE,
+          BLOCK_SIZE,
+          randRGB()
+        )
+      );
+    }
+    if (!(map[i] & ROAD_LEFT)) {
+      entities.push(
+        createEntity(
+          x * PLATE_SIZE,
+          y * PLATE_SIZE + BLOCK_SIZE,
+          BLOCK_SIZE,
+          randRGB()
+        )
+      );
+    }
+    if (!(map[i] & ROAD_BOTTOM)) {
+      entities.push(
+        createEntity(
+          x * PLATE_SIZE + BLOCK_SIZE,
+          y * PLATE_SIZE + 2 * BLOCK_SIZE,
+          BLOCK_SIZE,
+          randRGB()
+        )
+      );
+    }
+    if (!(map[i] & ROAD_RIGHT)) {
+      entities.push(
+        createEntity(
+          x * PLATE_SIZE + 2 * BLOCK_SIZE,
+          y * PLATE_SIZE + BLOCK_SIZE,
+          BLOCK_SIZE,
+          randRGB()
+        )
+      );
+    }
+  }
+};
+
+function setSizes() {
+  PLAYER_SIZE =
+    difficulty === DIFFICULTY_EASY
+      ? 10
+      : difficulty === DIFFICULTY_MEDIUM
+      ? 15
+      : 20;
+  BLOCK_SIZE =
+    difficulty === DIFFICULTY_EASY
+      ? 20
+      : difficulty === DIFFICULTY_MEDIUM
+      ? 40
+      : 80;
+  PLATE_SIZE = BLOCK_SIZE * 3;
+  MAP.width = MAP_WIDTH * PLATE_SIZE;
+  MAP.height = MAP_HEIGHT * PLATE_SIZE;
+  CAMERA_WINDOW_X = CAMERA_WINDOW_Y =
+    difficulty === DIFFICULTY_EASY
+      ? 100
+      : difficulty === DIFFICULTY_MEDIUM
+      ? 150
+      : 200;
+  CAMERA_WINDOW_WIDTH = VIEWPORT.width - CAMERA_WINDOW_X;
+  CAMERA_WINDOW_HEIGHT = VIEWPORT.height - CAMERA_WINDOW_Y;
+  PLAYER_SPEED =
+    difficulty === DIFFICULTY_EASY
+      ? 100
+      : difficulty === DIFFICULTY_MEDIUM
+      ? 150
+      : 200;
+  OUTLINES =
+    difficulty === DIFFICULTY_EASY
+      ? [0, 1, 2]
+      : difficulty === DIFFICULTY_MEDIUM
+      ? [0, 1, 2, 3]
+      : [0, 1, 2, 3, 4, 5];
+}
+
+function createEntity(x = 0, y = 0, size = BLOCK_SIZE, color, type) {
+  let extraProps;
+
+  switch(type) {
+    case 'hero':
+      extraProps = {
+        moveDown: 0,
+        moveLeft: 0,
+        moveRight: 0,
+        moveUp: 0,
+        moveX: 0,
+        moveY: 0,
+        outline: 0,
+        type,
+        speed: PLAYER_SPEED
+      };
+      break;
+    case MONUMENT:
+      extraProps = {
+        outline: 0,
+        type,
+        visited: false
+      };
+      break;
+    default:
+      extraProps = {
+        outline: choice(OUTLINES)
+      };
+  }
+
+  // TODO in this game h === w is always true, replace with 1 size attribute
+  return {
+    color,
+    h: size,
+    w: size,
+    x,
+    y,
+    ...extraProps
+  };
+};
+
 function startGame() {
-  konamiIndex = 0;
-  countdown = 60;
+  setSizes();
+  colorTitleScreen = randRGB();
+  colorGoalScreen = randRGB();
+  colorEndScreen = randRGB();
+  winGame = false;
+  nbMonumentsSnapped = 0;
+  countdown = 120;
   viewportOffsetX = viewportOffsetY = 0;
-  hero = createEntity('hero', VIEWPORT.width / 2, VIEWPORT.height / 2);
-  entities = [
-    hero,
-    createEntity('foe', 10, 10),
-    createEntity('foe', 630 - 16, 10),
-    createEntity('foe', 630 - 16, 470 - 18),
-    createEntity('foe', 300, 200),
-    createEntity('foe', 400, 300),
-    createEntity('foe', 500, 400),
-    createEntity('foe', 10, 470 - 18),
-    createEntity('foe', 100, 100),
-    createEntity('foe', 100, 118),
-    createEntity('foe', 116, 118),
-    createEntity('foe', 116, 100),
-  ];
+  hero = createEntity(BLOCK_SIZE, BLOCK_SIZE, PLAYER_SIZE, 'blue', 'hero');
+  generateMapAndEntities();
+  monuments = entities.filter(entity => entity.type === MONUMENT);
+  nbMonuments = monuments.length;
   renderMap();
+
   screen = GAME_SCREEN;
 };
 
-function testAABBCollision(entity1, entity2) {
-  const test = {
-    entity1MaxX: entity1.x + entity1.w,
-    entity1MaxY: entity1.y + entity1.h,
-    entity2MaxX: entity2.x + entity2.w,
-    entity2MaxY: entity2.y + entity2.h,
+function testAABBCollision(entity) {
+  const bounds = {
+    entity1MaxX: hero.x + hero.w,
+    entity1MaxY: hero.y + hero.h,
+    entity2MaxX: entity.x + entity.w,
+    entity2MaxY: entity.y + entity.h,
   };
 
-  test.collide = entity1.x < test.entity2MaxX
-    && test.entity1MaxX > entity2.x
-    && entity1.y < test.entity2MaxY
-    && test.entity1MaxY > entity2.y;
+  bounds.collided = hero.x < bounds.entity2MaxX
+    && bounds.entity1MaxX > entity.x
+    && hero.y < bounds.entity2MaxY
+    && bounds.entity1MaxY > entity.y;
 
-  return test;
+  return bounds;
 };
 
-// entity1 collided into entity2
-function correctAABBCollision(entity1, entity2, test) {
-  const { entity1MaxX, entity1MaxY, entity2MaxX, entity2MaxY } = test;
+// hero collided into entity
+function correctAABBCollision(entity, bounds) {
+  const { entity1MaxX, entity1MaxY, entity2MaxX, entity2MaxY } = bounds;
 
-  const deltaMaxX = entity1MaxX - entity2.x;
-  const deltaMaxY = entity1MaxY - entity2.y;
-  const deltaMinX = entity2MaxX - entity1.x;
-  const deltaMinY = entity2MaxY - entity1.y;
+  const deltaMaxX = entity1MaxX - entity.x;
+  const deltaMaxY = entity1MaxY - entity.y;
+  const deltaMinX = entity2MaxX - hero.x;
+  const deltaMinY = entity2MaxY - hero.y;
 
   // AABB collision response (homegrown wall sliding, not physically correct
   // because just pushing along one axis by the distance overlapped)
 
-  // entity1 moving down/right
-  if (entity1.moveX > 0 && entity1.moveY > 0) {
+  // hero moving down/right
+  if (hero.moveX > 0 && hero.moveY > 0) {
     if (deltaMaxX < deltaMaxY) {
       // collided right side first
-      entity1.x -= deltaMaxX;
+      hero.x -= deltaMaxX;
     } else {
       // collided top side first
-      entity1.y -= deltaMaxY;
+      hero.y -= deltaMaxY;
     }
   }
-  // entity1 moving up/right
-  else if (entity1.moveX > 0 && entity1.moveY < 0) {
+  // hero moving up/right
+  else if (hero.moveX > 0 && hero.moveY < 0) {
     if (deltaMaxX < deltaMinY) {
       // collided right side first
-      entity1.x -= deltaMaxX;
+      hero.x -= deltaMaxX;
     } else {
       // collided bottom side first
-      entity1.y += deltaMinY;
+      hero.y += deltaMinY;
     }
   }
-  // entity1 moving right
-  else if (entity1.moveX > 0) {
-    entity1.x -= deltaMaxX;
+  // hero moving right
+  else if (hero.moveX > 0) {
+    hero.x -= deltaMaxX;
   }
-  // entity1 moving down/left
-  else if (entity1.moveX < 0 && entity1.moveY > 0) {
+  // hero moving down/left
+  else if (hero.moveX < 0 && hero.moveY > 0) {
     if (deltaMinX < deltaMaxY) {
       // collided left side first
-      entity1.x += deltaMinX;
+      hero.x += deltaMinX;
     } else {
       // collided top side first
-      entity1.y -= deltaMaxY;
+      hero.y -= deltaMaxY;
     }
   }
-  // entity1 moving up/left
-  else if (entity1.moveX < 0 && entity1.moveY < 0) {
+  // hero moving up/left
+  else if (hero.moveX < 0 && hero.moveY < 0) {
     if (deltaMinX < deltaMinY) {
       // collided left side first
-      entity1.x += deltaMinX;
+      hero.x += deltaMinX;
     } else {
       // collided bottom side first
-      entity1.y += deltaMinY;
+      hero.y += deltaMinY;
     }
   }
-  // entity1 moving left
-  else if (entity1.moveX < 0) {
-    entity1.x += deltaMinX;
+  // hero moving left
+  else if (hero.moveX < 0) {
+    hero.x += deltaMinX;
   }
-  // entity1 moving down
-  else if (entity1.moveY > 0) {
-    entity1.y -= deltaMaxY;
+  // hero moving down
+  else if (hero.moveY > 0) {
+    hero.y -= deltaMaxY;
   }
-  // entity1 moving up
-  else if (entity1.moveY < 0) {
-    entity1.y += deltaMinY;
-  }
-};
-
-function constrainToViewport(entity) {
-  if (entity.x < 0) {
-    entity.x = 0;
-  } else if (entity.x > MAP.width - entity.w) {
-    entity.x = MAP.width - entity.w;
-  }
-  if (entity.y < 0) {
-    entity.y = 0;
-  } else if (entity.y > MAP.height - entity.h) {
-    entity.y = MAP.height - entity.h;
+  // hero moving up
+  else if (hero.moveY < 0) {
+    hero.y += deltaMinY;
   }
 };
 
+function constrainToViewport() {
+  if (hero.x < 0) {
+    hero.x = 0;
+  } else if (hero.x > MAP.width - hero.w) {
+    hero.x = MAP.width - hero.w;
+  }
+  if (hero.y < 0) {
+    hero.y = 0;
+  } else if (hero.y > MAP.height - hero.h) {
+    hero.y = MAP.height - hero.h;
+  }
+};
 
 function updateCameraWindow() {
   // edge snapping
@@ -222,79 +449,70 @@ function updateCameraWindow() {
   }
 };
 
-function createEntity(type, x = 0, y = 0) {
-  const action = 'move';
-  const sprite = ATLAS[type][action][0];
-  return {
-    action,
-    frame: 0,
-    frameTime: 0,
-    h: sprite.h,
-    moveDown: 0,
-    moveLeft: 0,
-    moveRight: 0,
-    moveUp: 0,
-    moveX: 0,
-    moveY: 0,
-    speed: ATLAS[type].speed,
-    type,
-    w: sprite.w,
-    x,
-    y,
-  };
-};
-
 function updateHeroInput() {
-  // TODO can touch & desktop be handled the same way?
   if (isTouch) {
     hero.moveX = hero.moveLeft + hero.moveRight;
     hero.moveY = hero.moveUp + hero.moveDown;
   } else {
     if (hero.moveLeft || hero.moveRight) {
-      hero.moveX = (hero.moveLeft > hero.moveRight ? -1 : 1) * lerp(0, 1, (currentTime - Math.max(hero.moveLeft, hero.moveRight)) / STEERING_DURATION)
+      hero.moveX = (hero.moveLeft > hero.moveRight ? -1 : 1) * lerp(0, 1, (currentTime - Math.max(hero.moveLeft, hero.moveRight)) / FULL_ACCELERATION_DURATION)
     } else {
       hero.moveX = 0;
     }
     if (hero.moveDown || hero.moveUp) {
-      hero.moveY = (hero.moveUp > hero.moveDown ? -1 : 1) * lerp(0, 1, (currentTime - Math.max(hero.moveUp, hero.moveDown)) / STEERING_DURATION)
+      hero.moveY = (hero.moveUp > hero.moveDown ? -1 : 1) * lerp(0, 1, (currentTime - Math.max(hero.moveUp, hero.moveDown)) / FULL_ACCELERATION_DURATION)
     } else {
       hero.moveY = 0;
     }
   }
 }
 
-function updateEntity(entity) {
-  // update animation frame
-  entity.frameTime += elapsedTime;
-  if (entity.frameTime > FRAME_DURATION) {
-    entity.frameTime -= FRAME_DURATION;
-    entity.frame += 1;
-    entity.frame %= ATLAS[entity.type][entity.action].length;
+function updatePlayerPosition() {
+  const scale = hero.moveX && hero.moveY ? RADIUS_ONE_AT_45_DEG : 1;
+  const distance = hero.speed * elapsedTime * scale;
+  hero.x += distance * hero.moveX;
+  hero.y += distance * hero.moveY;
+};
+
+function checkMonument(entity) {
+  if (entity.type === MONUMENT && !entity.visited) {
+    entity.visited = true;
+    entity.color = randG();
+    nbMonumentsSnapped++;
   }
-  // update position
-  const scale = entity.moveX && entity.moveY ? RADIUS_ONE_AT_45_DEG : 1;
-  const distance = entity.speed * elapsedTime * scale;
-  entity.x += distance * entity.moveX;
-  entity.y += distance * entity.moveY;
+}
+
+function checkGameEnd() {
+  if (nbMonumentsSnapped === nbMonuments) {
+    screen = END_SCREEN;
+    winGame = true;
+  } else if (countdown < 0) {
+    screen = END_SCREEN;
+    winGame = false;
+  }
 };
 
 function update() {
   switch (screen) {
     case GAME_SCREEN:
       countdown -= elapsedTime;
-      if (countdown < 0) {
-        screen = END_SCREEN;
-      }
+
       updateHeroInput();
-      entities.forEach(updateEntity);
-      entities.slice(1).forEach((entity) => {
-        const test = testAABBCollision(hero, entity);
-        if (test.collide) {
-          correctAABBCollision(hero, entity, test);
+      updatePlayerPosition();
+      hero.color = randRGB();
+      entities.forEach(entity => {
+        const {collided, ...bounds} = testAABBCollision(entity);
+        if (collided) {
+          correctAABBCollision(entity, bounds);
+          checkMonument(entity);
+        }
+        if (entity.type === MONUMENT && !entity.visited) {
+          entity.color = randR();
         }
       });
-      constrainToViewport(hero);
+      constrainToViewport();
       updateCameraWindow();
+      checkGameEnd();
       break;
   }
 };
@@ -311,33 +529,71 @@ function blit() {
 };
 
 function render() {
-  VIEWPORT_CTX.fillStyle = '#fff';
-  VIEWPORT_CTX.fillRect(0, 0, VIEWPORT.width, VIEWPORT.height);
+  const halfWidth = VIEWPORT.width / 2;
+  const halfHeight = VIEWPORT.height / 2;
+  const twoThirdHeight = VIEWPORT.height * 2 / 3;
 
   switch (screen) {
     case TITLE_SCREEN:
-      renderText('title screen', VIEWPORT_CTX, CHARSET_SIZE, CHARSET_SIZE);
-      renderText(isMobile ? 'tap to start' : 'press any key', VIEWPORT_CTX, VIEWPORT.width / 2, VIEWPORT.height / 2, ALIGN_CENTER);
-      if (konamiIndex === konamiCode.length) {
-        renderText('konami mode on', VIEWPORT_CTX, VIEWPORT.width - CHARSET_SIZE, CHARSET_SIZE, ALIGN_RIGHT);
+      VIEWPORT_CTX.fillStyle = colorTitleScreen;
+      VIEWPORT_CTX.fillRect(0, 0, VIEWPORT.width, VIEWPORT.height);
+
+      renderText('a tourist in paris', VIEWPORT_CTX, halfWidth, 112, ALIGN_CENTER, 4);
+
+      if (isMobile) {
+        renderText('tap to start', VIEWPORT_CTX, halfWidth, halfHeight, ALIGN_CENTER);
+      } else {
+        renderText('press e for easy', VIEWPORT_CTX, halfWidth, halfHeight, ALIGN_CENTER);
+        renderText('m for medium, h for hard', VIEWPORT_CTX, halfWidth, halfHeight + 24, ALIGN_CENTER);
+      }
+
+      renderText('proudly made in canada', VIEWPORT_CTX, halfWidth, VIEWPORT.height - 80, ALIGN_CENTER);
+      renderText('by jerome lecomte', VIEWPORT_CTX, halfWidth, VIEWPORT.height - 56, ALIGN_CENTER);
+      renderText('for js13kgames 2017', VIEWPORT_CTX, VIEWPORT.width / 2, VIEWPORT.height - 32, ALIGN_CENTER);
+      break;
+    case GOAL_SCREEN:
+      VIEWPORT_CTX.fillStyle = colorGoalScreen;
+      VIEWPORT_CTX.fillRect(0, 0, VIEWPORT.width, VIEWPORT.height);
+
+      renderText('tourist: noun. person geographically', VIEWPORT_CTX, 16, 32);
+      renderText('and culturally lost, trying to cross', VIEWPORT_CTX, 16, 56);
+      renderText('iconic monuments off their bucket', VIEWPORT_CTX, 16, 80);
+      renderText('list before their tour bus departs.', VIEWPORT_CTX, 16, 104);
+
+      renderText('controls:', VIEWPORT_CTX, 16, 176);
+      renderText(isMobile ? 'swipe screen to move' : 'arrow keys or wasd to move.', VIEWPORT_CTX, VIEWPORT.width - 16, 200, ALIGN_RIGHT);
+      renderText('goal:', VIEWPORT_CTX, 16, 248);
+      renderText('touch all blinking squares', VIEWPORT_CTX, VIEWPORT.width - 16, 272, ALIGN_RIGHT);
+      renderText('before time runs out.', VIEWPORT_CTX, VIEWPORT.width - 16, 296, ALIGN_RIGHT);
+
+      if (Math.floor(currentTime / 1000) % 2) {
+        renderText(isMobile ? 'tap to start.' : 'press any key to start.', VIEWPORT_CTX, 16, VIEWPORT.height - 32);
       }
       break;
     case GAME_SCREEN:
+      monuments.forEach(renderEntityOnCachedMap);
       VIEWPORT_CTX.drawImage(
         MAP,
         // adjust x/y offset
         viewportOffsetX, viewportOffsetY, VIEWPORT.width, VIEWPORT.height,
         0, 0, VIEWPORT.width, VIEWPORT.height
       );
-      renderText('game screen', VIEWPORT_CTX, CHARSET_SIZE, CHARSET_SIZE);
+      renderEntity(hero);
       renderCountdown();
+      renderText(`${nbMonumentsSnapped}/${nbMonuments} monuments visited`, VIEWPORT_CTX, 16, VIEWPORT.height - 32, ALIGN_LEFT);
       // uncomment to debug mobile input handlers
       // renderDebugTouch();
-      entities.forEach(renderEntity);
       break;
     case END_SCREEN:
-      renderText('end screen', VIEWPORT_CTX, CHARSET_SIZE, CHARSET_SIZE);
-      break;
+      VIEWPORT_CTX.fillStyle = colorEndScreen;
+      VIEWPORT_CTX.fillRect(0, 0, VIEWPORT.width, VIEWPORT.height);
+
+      renderText(`you ${winGame ? 'won' : 'lost'}!`, VIEWPORT_CTX, halfWidth, 112, ALIGN_CENTER, 4);
+      renderText(`${nbMonumentsSnapped} out of ${nbMonuments}`, VIEWPORT_CTX, halfWidth, halfHeight - 32, ALIGN_CENTER, 3);
+      renderText(`monuments visited`, VIEWPORT_CTX, halfWidth, VIEWPORT.height / 2, ALIGN_CENTER, 3);
+      renderText('press r to retry same level', VIEWPORT_CTX, halfWidth, twoThirdHeight, ALIGN_CENTER);
+      renderText('press n to start new level', VIEWPORT_CTX, halfWidth, twoThirdHeight + 24, ALIGN_CENTER);
+      renderText('press t to tweet your score', VIEWPORT_CTX, halfWidth, twoThirdHeight + 48, ALIGN_CENTER);
   }
 
   blit();
@@ -346,24 +602,31 @@ function render() {
 function renderCountdown() {
   const minutes = Math.floor(Math.ceil(countdown) / 60);
   const seconds = Math.ceil(countdown) - minutes * 60;
-  renderText(`${minutes}:${seconds <= 9 ? '0' : ''}${seconds}`, VIEWPORT_CTX, VIEWPORT.width - CHARSET_SIZE, CHARSET_SIZE, ALIGN_RIGHT);
+  renderText(`bus leaving in ${minutes}:${seconds <= 9 ? '0' : ''}${seconds}`, VIEWPORT_CTX, VIEWPORT.width - CHARSET_SIZE, CHARSET_SIZE, ALIGN_RIGHT);
 
 };
 
-function renderEntity(entity) {
-  const sprite = ATLAS[entity.type][entity.action][entity.frame];
-  // TODO skip draw if image outside of visible canvas
-  VIEWPORT_CTX.drawImage(
-    tileset,
-    sprite.x, sprite.y, sprite.w, sprite.h,
-    Math.round(entity.x - viewportOffsetX), Math.round(entity.y - viewportOffsetY), sprite.w, sprite.h
+function renderEntityOnCachedMap(entity) {
+  renderEntity(entity, MAP_CTX, 0, 0);
+};
+
+function renderEntity(entity, ctx = VIEWPORT_CTX, offsetX = viewportOffsetX, offsetY = viewportOffsetY) {
+  ctx.fillStyle = entity.color;
+
+  ctx.fillRect(
+    Math.round(entity.x - offsetX - entity.outline),
+    Math.round(entity.y - offsetY - entity.outline),
+    entity.w + 2 * entity.outline,
+    entity.h + 2 * entity.outline
   );
 };
 
 function renderMap() {
   MAP_CTX.fillStyle = '#fff';
   MAP_CTX.fillRect(0, 0, MAP.width, MAP.height);
-  // TODO cache map by rendering static entities on the MAP canvas
+  
+  // cache map by rendering static entities on the MAP canvas
+  entities.forEach(renderEntityOnCachedMap);
 };
 
 // LOOP HANDLERS
@@ -393,14 +656,17 @@ function toggleLoop(value) {
 
 onload = async (e) => {
   // the real "main" of the game
-  document.title = 'Game Jam Boilerplate';
+  document.title = 'A Tourist in Paris';
 
   onresize();
+  // TODO extra time? no time at all?
   //checkMonetization(unlockExtraContent);
 
-  await initCharset(loadImg);
-  tileset = await loadImg(TILESET);
-  // speak = await initSpeech();
+  // TODO initialize PRNG
+  colorTitleScreen = randRGB();
+  colorGoalScreen = randRGB();
+
+  await initCharset();
 
   toggleLoop(true);
 };
@@ -421,15 +687,6 @@ document.onvisibilitychange = function(e) {
   toggleLoop(!e.target.hidden);
 };
 
-function loadImg(dataUri) {
-  return new Promise(function(resolve) {
-    var img = new Image();
-    img.onload = function() {
-      resolve(img);
-    };
-    img.src = dataUri;
-  });
-};
 
 // INPUT HANDLERS
 
@@ -472,12 +729,24 @@ onkeydown = function(e) {
 onkeyup = function(e) {
   switch (screen) {
     case TITLE_SCREEN:
-      if (e.which !== konamiCode[konamiIndex] || konamiIndex === konamiCode.length) {
-        startGame();
-      } else {
-        konamiIndex++;
+      switch (e.code) {
+        case 'KeyE':
+          difficulty = DIFFICULTY_EASY;
+          screen = GOAL_SCREEN;
+          break;
+        case 'KeyM':
+          difficulty = DIFFICULTY_MEDIUM;
+          screen = GOAL_SCREEN;
+          break;
+        case 'KeyH':
+          difficulty = DIFFICULTY_HARD;
+          screen = GOAL_SCREEN;
+          break;
       }
       break;
+    case GOAL_SCREEN:
+        startGame();
+        break;
     case GAME_SCREEN:
       switch (e.code) {
         case 'ArrowLeft':
@@ -518,11 +787,21 @@ onkeyup = function(e) {
       break;
     case END_SCREEN:
       switch (e.code) {
-        case 'KeyT':
-          open(`https://twitter.com/intent/tweet?text=viral%20marketing%20message%20https%3A%2F%2Fgoo.gl%2F${'some tiny Google url here'}`, '_blank');
+        case 'Enter':
+        case 'KeyN':
+          // TODO regenerate seed
+          startGame();
           break;
-        default:
-          screen = TITLE_SCREEN;
+        case 'KeyR':
+          startGame();
+          break;
+        case 'KeyT':
+          open(
+            `https://twitter.com/intent/tweet?text=I%20just%20visited%20${nbMonumentsSnapped}%20monument${
+              nbMonumentsSnapped > 1 ? 's' : ''
+            }%20in%20A%20Tourist%20In%20Paris,%20a%20%23js13k%20game%20by%20%40herebefrogs%20https%3A%2F%2Fgoo.gl%2FKPNCyr`,
+          '_blank' 
+          ); 
           break;
       }
       break;
@@ -566,6 +845,10 @@ ontouchend = onpointerup = function(e) {
   e.preventDefault();
   switch (screen) {
     case TITLE_SCREEN:
+      screen = GOAL_SCREEN;
+      break;
+    case GOAL_SCREEN:
+    case END_SCREEN:
       startGame();
       break;
     case GAME_SCREEN:
@@ -574,9 +857,6 @@ ontouchend = onpointerup = function(e) {
       hero.moveLeft = hero.moveRight = hero.moveDown = hero.moveUp = 0;
       // end touch
       minX = minY = maxX = maxY = 0;
-      break;
-    case END_SCREEN:
-      screen = TITLE_SCREEN;
       break;
   }
 };
