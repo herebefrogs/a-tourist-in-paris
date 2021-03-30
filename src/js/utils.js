@@ -36,15 +36,38 @@ export function seedRand(str) {
   return rand;
 }
 
+// current Pseudo Random Number Generator
+// fall back non-deterministic Math.random in case setRandSeed() hasn't been called yet
 let prng = Math.random;
 
-export function setRandSeed(seed) {
+// initialize a new PRNG with the provided seed
+export function initRand(seed) {
   prng = seedRand(seed);
 }
 
-export function getSeed() {
-  // base64 encode a random number between 0 and 1, discard the first 3 letters (alwasy MC4) and keep the next 6
+// return a new seed made of a combination of 6 letters or numbers
+// by base64-encoding a random number between 0 and 1, discarding the first 3 characters (alwasy MC4) and keeping the next 6
+function createRandSeed() {
   return btoa(prng()).slice(3, 9)
+}
+
+// return a seed value retrieved from the URL (if present) or generated
+// (if missing or asked to change, storing the new value in the URL for future use)
+export function getSeed(changeSeed = false) {
+  // attempt to read seed from URL
+  let seed = new URLSearchParams(location.search).get('seed');
+
+  // is seed missing or explicitely asked to regenerate a new one?
+  if (!seed || changeSeed) {
+    seed = createRandSeed();
+
+    // save seed in URL
+    const url = new URL(location);
+    url.searchParams.set('seed', seed);
+    history.pushState({}, '', url);
+  }
+
+  return seed;
 }
 
 export function rand(min, max) {

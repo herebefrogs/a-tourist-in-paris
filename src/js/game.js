@@ -2,7 +2,7 @@ import { isMobile } from './mobile';
 import { checkMonetization } from './monetization';
 import { save, load } from './storage';
 import { ALIGN_LEFT, ALIGN_CENTER, ALIGN_RIGHT, CHARSET_SIZE, initCharset, renderText } from './text';
-import { choice, getSeed, lerp, randRGB, randG, randR, setRandSeed } from './utils';
+import { choice, getSeed, initRand, lerp, randRGB, randG, randR } from './utils';
 
 
 // GAMEPLAY VARIABLES
@@ -318,7 +318,7 @@ function createEntity(x = 0, y = 0, size = BLOCK_SIZE, color, type) {
 };
 
 function startGame() {
-  setRandSeed(seed);
+  initRand(seed);
   setSizes();
   colorTitleScreen = randRGB();
   colorGoalScreen = randRGB();
@@ -656,6 +656,7 @@ function toggleLoop(value) {
 
 // EVENT HANDLERS
 
+
 onload = async (e) => {
   // the real "main" of the game
   document.title = 'A Tourist in Paris';
@@ -791,7 +792,7 @@ onkeyup = function(e) {
       switch (e.code) {
         case 'Enter':
         case 'KeyN':
-          seed = getSeed();
+          seed = getSeed(true);
           startGame();
           break;
         case 'KeyR':
@@ -801,7 +802,9 @@ onkeyup = function(e) {
           open(
             `https://twitter.com/intent/tweet?text=I%20just%20visited%20${nbMonumentsSnapped}%20monument${
               nbMonumentsSnapped > 1 ? 's' : ''
-            }%20in%20A%20Tourist%20In%20Paris,%20a%20%23js13k%20game%20by%20%40herebefrogs%20https%3A%2F%2Fgoo.gl%2FKPNCyr`,
+            }%20in%20A%20Tourist%20In%20Paris,%20a%20%23js13k%20game%20by%20%40herebefrogs%0A%0ATry%20to%20beat%20my%20score%3A%20${
+              encodeURIComponent(location)
+            }`,
           '_blank' 
           ); 
           break;
