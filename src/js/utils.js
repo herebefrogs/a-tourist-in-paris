@@ -1,5 +1,54 @@
+/**
+ * Create a seeded random number generator.
+ * Copied from Kontra.js by Steven Lambert
+ *
+ * ```
+ * let rand = seedRand('kontra');
+ * console.log(rand());  // => always 0.33761959057301283
+ * ```
+ * @see https://github.com/straker/kontra/blob/main/src/helpers.js
+ * @see https://stackoverflow.com/a/47593316/2124254
+ * @see https://github.com/bryc/code/blob/master/jshash/PRNGs.md
+ *
+ * @function seedRand
+ *
+ * @param {String} str - String to seed the random number generator.
+ *
+ * @returns {() => Number} Seeded random number generator function.
+ */
+export function seedRand(str) {
+  // based on the above references, this was the smallest code yet decent
+  // quality seed random function
+
+  // first create a suitable hash of the seed string using xfnv1a
+  // @see https://github.com/bryc/code/blob/master/jshash/PRNGs.md#addendum-a-seed-generating-functions
+  for(var i = 0, h = 2166136261 >>> 0; i < str.length; i++) {
+    h = Math.imul(h ^ str.charCodeAt(i), 16777619);
+  }
+  h += h << 13; h ^= h >>> 7;
+  h += h << 3;  h ^= h >>> 17;
+  let seed = (h += h << 5) >>> 0;
+
+  // then return the seed function and discard the first result
+  // @see https://github.com/bryc/code/blob/master/jshash/PRNGs.md#lcg-lehmer-rng
+  let rand = () => (2 ** 31 - 1 & (seed = Math.imul(48271, seed))) / 2 ** 31;
+  rand();
+  return rand;
+}
+
+let prng = Math.random;
+
+export function setRandSeed(seed) {
+  prng = seedRand(seed);
+}
+
+export function getSeed() {
+  // base64 encode a random number between 0 and 1, discard the first 3 letters (alwasy MC4) and keep the next 6
+  return btoa(prng()).slice(3, 9)
+}
+
 export function rand(min, max) {
-  return Math.floor(Math.random() * (max + 1 - min) + min);
+  return Math.floor(prng() * (max + 1 - min) + min);
 };
 
 export function choice(values) {

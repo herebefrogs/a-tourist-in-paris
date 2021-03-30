@@ -1,6 +1,6 @@
 game
 ====
-- generate the map with a PRNG, adding the seed in the URL and Tweet so it can be reattempted
+- adding the seed in the URL and Tweet so it can be reattempted
 - konami code to enable bubbly mode? (outline refreshed on every render)
 - add a blue bus to reach before the countdown
 - improve map, making sure everything is always accessible (no bus or monument in an island)

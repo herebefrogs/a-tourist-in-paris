@@ -2,7 +2,7 @@ import { isMobile } from './mobile';
 import { checkMonetization } from './monetization';
 import { save, load } from './storage';
 import { ALIGN_LEFT, ALIGN_CENTER, ALIGN_RIGHT, CHARSET_SIZE, initCharset, renderText } from './text';
-import { choice, lerp, randRGB, randG, randR } from './utils';
+import { choice, getSeed, lerp, randRGB, randG, randR, setRandSeed } from './utils';
 
 
 // GAMEPLAY VARIABLES
@@ -24,6 +24,7 @@ const DIFFICULTY_EASY = 0;
 const DIFFICULTY_MEDIUM = 1;
 const DIFFICULTY_HARD = 2;
 
+let seed;
 let countdown; // in seconds
 let hero;
 let entities;
@@ -317,6 +318,7 @@ function createEntity(x = 0, y = 0, size = BLOCK_SIZE, color, type) {
 };
 
 function startGame() {
+  setRandSeed(seed);
   setSizes();
   colorTitleScreen = randRGB();
   colorGoalScreen = randRGB();
@@ -662,7 +664,7 @@ onload = async (e) => {
   // TODO extra time? no time at all?
   //checkMonetization(unlockExtraContent);
 
-  // TODO initialize PRNG
+  seed = getSeed();
   colorTitleScreen = randRGB();
   colorGoalScreen = randRGB();
 
@@ -789,7 +791,7 @@ onkeyup = function(e) {
       switch (e.code) {
         case 'Enter':
         case 'KeyN':
-          // TODO regenerate seed
+          seed = getSeed();
           startGame();
           break;
         case 'KeyR':
