@@ -4,6 +4,12 @@ import { ALIGN_LEFT, ALIGN_CENTER, ALIGN_RIGHT, CHARSET_SIZE, initCharset, rende
 import { choice, getSeed, initRand, lerp, randRGB, randB, randG, randR } from './utils';
 
 
+// EASTER EGG
+
+// up up down down left right left right B A
+const KONAMI_CODE = [38, 38, 40, 40, 37, 39, 37, 39, 66, 65];
+let konamiIndex = 0;
+
 // GAMEPLAY VARIABLES
 
 const TITLE_SCREEN = 0;
@@ -56,6 +62,7 @@ const ROAD_TOP = 1;
 const ROAD_RIGHT = 2;
 const ROAD_BOTTOM = 4;
 const ROAD_LEFT = 8;
+let wobbleMode = false;
 
 // camera-window & edge-snapping settings
 let CAMERA_WINDOW_X;
@@ -514,6 +521,7 @@ function update() {
 
           if (collided) {
             entity.visited = true;
+            // freeze the monument's color
             entity.color = randG();
             nbMonumentsSnapped++;
           }
@@ -526,7 +534,9 @@ function update() {
             entity.visited = true;
           }
         }
-
+        if (wobbleMode) {
+          entity.outline = choice(OUTLINES);
+        }
       });
       constrainToViewport();
       updateCameraWindow();
@@ -590,14 +600,21 @@ function render() {
       }
       break;
     case GAME_SCREEN:
-      monuments.forEach(renderEntityOnCachedMap);
-      renderEntityOnCachedMap(bus);
-      VIEWPORT_CTX.drawImage(
-        MAP,
-        // adjust x/y offset
-        viewportOffsetX, viewportOffsetY, VIEWPORT.width, VIEWPORT.height,
-        0, 0, VIEWPORT.width, VIEWPORT.height
-      );
+      if (wobbleMode) {
+        VIEWPORT_CTX.fillStyle = '#fff';
+        VIEWPORT_CTX.fillRect(0, 0, VIEWPORT.width, VIEWPORT.height);
+
+        entities.forEach(entity => renderEntity(entity));
+      } else {
+        monuments.forEach(renderEntityOnCachedMap);
+        renderEntityOnCachedMap(bus);
+        VIEWPORT_CTX.drawImage(
+          MAP,
+          // adjust x/y offset
+          viewportOffsetX, viewportOffsetY, VIEWPORT.width, VIEWPORT.height,
+          0, 0, VIEWPORT.width, VIEWPORT.height
+        );
+      }
       renderEntity(hero);
       renderCountdown();
       renderText(`${nbMonumentsSnapped}/${nbMonuments} monuments visited`, VIEWPORT_CTX, 16, VIEWPORT.height - 32, ALIGN_LEFT);
@@ -754,6 +771,13 @@ onkeydown = function(e) {
 onkeyup = function(e) {
   switch (screen) {
     case TITLE_SCREEN:
+      if (e.which === KONAMI_CODE[konamiIndex] && konamiIndex !== KONAMI_CODE.length) {
+        konamiIndex++;
+        if (konamiIndex === KONAMI_CODE.length) {
+          wobbleMode = true;
+        }
+        return;
+      }
       switch (e.code) {
         case 'KeyE':
           difficulty = DIFFICULTY_EASY;

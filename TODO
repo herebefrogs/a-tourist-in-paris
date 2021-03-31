@@ -1,6 +1,4 @@
 game
 ====
-- konami code to enable bubbly mode? (outline refreshed on every render)
 - improve map, making sure everything is always accessible (no bus or monument in an island)
-- clean up imports
 
