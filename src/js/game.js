@@ -30,6 +30,7 @@ let entities;
 let winGame;
 let nbMonuments;
 let nbMonumentsSnapped;
+let webMonetizationEnabled = true;
 
 // RENDER VARIABLES
 
@@ -75,6 +76,9 @@ let running = true;
 // GAMEPLAY HANDLERS
 
 function unlockExtraContent() {
+  // this will be checked upon game start
+  // and give 20% more time to Coil subscribers
+  webMonetizationEnabled = true;
 }
 
 function generateMapEntitiesAndBus() {
@@ -329,7 +333,8 @@ function startGame() {
   colorEndScreen = randRGB();
   winGame = false;
   nbMonumentsSnapped = 0;
-  countdown = 120;
+  // give coil subscribers 20% more time to look for monuments
+  countdown = 120 * (webMonetizationEnabled ? 1.2 : 1);
   viewportOffsetX = viewportOffsetY = 0;
   hero = createEntity(BLOCK_SIZE, BLOCK_SIZE, PLAYER_SIZE, 'blue', 'hero');
   generateMapEntitiesAndBus();
@@ -671,13 +676,12 @@ function toggleLoop(value) {
 // EVENT HANDLERS
 
 
+// the real "main" of the game
 onload = async (e) => {
-  // the real "main" of the game
   document.title = 'A Tourist in Paris';
 
   onresize();
-  // TODO extra time? no time at all?
-  //checkMonetization(unlockExtraContent);
+  checkMonetization(unlockExtraContent);
 
   seed = getSeed();
   colorTitleScreen = randRGB();
