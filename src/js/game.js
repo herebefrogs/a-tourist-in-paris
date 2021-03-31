@@ -2,7 +2,7 @@ import { isMobile } from './mobile';
 import { checkMonetization } from './monetization';
 import { save, load } from './storage';
 import { ALIGN_LEFT, ALIGN_CENTER, ALIGN_RIGHT, CHARSET_SIZE, initCharset, renderText } from './text';
-import { choice, getSeed, initRand, lerp, randRGB, randG, randR } from './utils';
+import { choice, getSeed, initRand, lerp, randRGB, randB, randG, randR } from './utils';
 
 
 // GAMEPLAY VARIABLES
@@ -16,8 +16,7 @@ let screen = TITLE_SCREEN;
 // factor by which to reduce both moveX and moveY when player moving diagonally
 // so they don't seem to move faster than when traveling vertically or horizontally
 const RADIUS_ONE_AT_45_DEG = Math.cos(Math.PI / 4);
-// TODO rename
-const FULL_ACCELERATION_DURATION = 200;                // in millis, duration till going full left or right
+const FULL_ACCELERATION_DURATION = 200;                // in millis, duration before moving to a new direction at full speed
 
 let difficulty;
 const DIFFICULTY_EASY = 0;
@@ -31,7 +30,6 @@ let entities;
 let winGame;
 let nbMonuments;
 let nbMonumentsSnapped;
-const MONUMENT = 'monument';
 
 // RENDER VARIABLES
 
@@ -79,7 +77,7 @@ let running = true;
 function unlockExtraContent() {
 }
 
-function generateMapAndEntities() {
+function generateMapEntitiesAndBus() {
   // step 1: determine general layout of city streets by connecting LEGO-like plates (made of 3x3 blocks)
   // e.g.   _ _ _                                 _ _ _
   //       |x|x|x|                               |x| |x|
@@ -139,7 +137,7 @@ function generateMapAndEntities() {
         ROAD_LEFT + ROAD_BOTTOM + ROAD_RIGHT,
         ROAD_TOP + ROAD_BOTTOM,
         ROAD_LEFT + ROAD_RIGHT,
-        MONUMENT
+        'monument'
       ]);
     }
     map[i] = plate;
@@ -150,14 +148,14 @@ function generateMapAndEntities() {
   for (let i = 0; i < MAP_WIDTH * MAP_HEIGHT; i++) {
     const x = i % MAP_WIDTH;
     const y = (i - x) / MAP_WIDTH;
-    if (map[i] === MONUMENT) {
+    if (map[i] === 'monument') {
       entities.push(
         createEntity(
           x * PLATE_SIZE + BLOCK_SIZE,
           y * PLATE_SIZE + BLOCK_SIZE,
           BLOCK_SIZE,
           randR(),
-          MONUMENT
+          'monument'
         )
       );
       continue;
@@ -236,6 +234,12 @@ function generateMapAndEntities() {
       );
     }
   }
+
+  // turn one of the monuments into the bus the tourist has to catch
+  const monuments = entities.filter(entity => entity.type === 'monument');
+  bus = choice(monuments);
+  bus.type = 'bus';
+  bus.color = randB();
 };
 
 function setSizes() {
@@ -293,7 +297,7 @@ function createEntity(x = 0, y = 0, size = BLOCK_SIZE, color, type) {
         speed: PLAYER_SPEED
       };
       break;
-    case MONUMENT:
+    case 'monument':
       extraProps = {
         outline: 0,
         type,
@@ -328,8 +332,8 @@ function startGame() {
   countdown = 120;
   viewportOffsetX = viewportOffsetY = 0;
   hero = createEntity(BLOCK_SIZE, BLOCK_SIZE, PLAYER_SIZE, 'blue', 'hero');
-  generateMapAndEntities();
-  monuments = entities.filter(entity => entity.type === MONUMENT);
+  generateMapEntitiesAndBus();
+  monuments = entities.filter(entity => entity.type === 'monument');
   nbMonuments = monuments.length;
   renderMap();
 
@@ -476,16 +480,8 @@ function updatePlayerPosition() {
   hero.y += distance * hero.moveY;
 };
 
-function checkMonument(entity) {
-  if (entity.type === MONUMENT && !entity.visited) {
-    entity.visited = true;
-    entity.color = randG();
-    nbMonumentsSnapped++;
-  }
-}
-
 function checkGameEnd() {
-  if (nbMonumentsSnapped === nbMonuments) {
+  if (bus.visited) {
     screen = END_SCREEN;
     winGame = true;
   } else if (countdown < 0) {
@@ -506,11 +502,26 @@ function update() {
         const {collided, ...bounds} = testAABBCollision(entity);
         if (collided) {
           correctAABBCollision(entity, bounds);
-          checkMonument(entity);
         }
-        if (entity.type === MONUMENT && !entity.visited) {
+        if (entity.type === 'monument' && !entity.visited) {
+          // change the monument's color to make it stand out
           entity.color = randR();
+
+          if (collided) {
+            entity.visited = true;
+            entity.color = randG();
+            nbMonumentsSnapped++;
+          }
         }
+        if (entity.type === 'bus' && !entity.visited) {
+          // change the bus's color to make it stand out
+          entity.color = randB();
+
+          if (collided) {
+            entity.visited = true;
+          }
+        }
+
       });
       constrainToViewport();
       updateCameraWindow();
@@ -565,8 +576,9 @@ function render() {
       renderText('controls:', VIEWPORT_CTX, 16, 176);
       renderText(isMobile ? 'swipe screen to move' : 'arrow keys or wasd to move.', VIEWPORT_CTX, VIEWPORT.width - 16, 200, ALIGN_RIGHT);
       renderText('goal:', VIEWPORT_CTX, 16, 248);
-      renderText('touch all blinking squares', VIEWPORT_CTX, VIEWPORT.width - 16, 272, ALIGN_RIGHT);
-      renderText('before time runs out.', VIEWPORT_CTX, VIEWPORT.width - 16, 296, ALIGN_RIGHT);
+      renderText('touch all red blinking squares', VIEWPORT_CTX, VIEWPORT.width - 16, 272, ALIGN_RIGHT);
+      renderText('then touch the blue square', VIEWPORT_CTX, VIEWPORT.width - 16, 296, ALIGN_RIGHT);
+      renderText('before time runs out.', VIEWPORT_CTX, VIEWPORT.width - 16, 320, ALIGN_RIGHT);
 
       if (Math.floor(currentTime / 1000) % 2) {
         renderText(isMobile ? 'tap to start.' : 'press any key to start.', VIEWPORT_CTX, 16, VIEWPORT.height - 32);
@@ -574,6 +586,7 @@ function render() {
       break;
     case GAME_SCREEN:
       monuments.forEach(renderEntityOnCachedMap);
+      renderEntityOnCachedMap(bus);
       VIEWPORT_CTX.drawImage(
         MAP,
         // adjust x/y offset
@@ -590,9 +603,10 @@ function render() {
       VIEWPORT_CTX.fillStyle = colorEndScreen;
       VIEWPORT_CTX.fillRect(0, 0, VIEWPORT.width, VIEWPORT.height);
 
-      renderText(`you ${winGame ? 'won' : 'lost'}!`, VIEWPORT_CTX, halfWidth, 112, ALIGN_CENTER, 4);
-      renderText(`${nbMonumentsSnapped} out of ${nbMonuments}`, VIEWPORT_CTX, halfWidth, halfHeight - 32, ALIGN_CENTER, 3);
-      renderText(`monuments visited`, VIEWPORT_CTX, halfWidth, VIEWPORT.height / 2, ALIGN_CENTER, 3);
+      renderText(`you saw`, VIEWPORT_CTX, halfWidth, halfHeight - 128, ALIGN_CENTER, 2);
+      renderText(` ${nbMonumentsSnapped} out of ${nbMonuments} monuments`, VIEWPORT_CTX, halfWidth, halfHeight - 96, ALIGN_CENTER, 3);
+      renderText(`before`, VIEWPORT_CTX, halfWidth, halfHeight - 52, ALIGN_CENTER, 2);
+      renderText(`${winGame ? 'catch' : 'miss'}ing your bus!`, VIEWPORT_CTX, halfWidth, halfHeight - 18, ALIGN_CENTER, 3);
       renderText('press r to retry same level', VIEWPORT_CTX, halfWidth, twoThirdHeight, ALIGN_CENTER);
       renderText('press n to start new level', VIEWPORT_CTX, halfWidth, twoThirdHeight + 24, ALIGN_CENTER);
       renderText('press t to tweet your score', VIEWPORT_CTX, halfWidth, twoThirdHeight + 48, ALIGN_CENTER);
@@ -800,9 +814,9 @@ onkeyup = function(e) {
           break;
         case 'KeyT':
           open(
-            `https://twitter.com/intent/tweet?text=I%20just%20visited%20${nbMonumentsSnapped}%20monument${
+            `https://twitter.com/intent/tweet?text=I%20visited%20${nbMonumentsSnapped}%20monument${
               nbMonumentsSnapped > 1 ? 's' : ''
-            }%20in%20A%20Tourist%20In%20Paris,%20a%20%23js13k%20game%20by%20%40herebefrogs%0A%0ATry%20to%20beat%20my%20score%3A%20${
+            }%20before%20${winGame ? 'catch' : 'miss'}ing%20my%20bus%20in%20A%20Tourist%20In%20Paris,%20a%20%23js13k%20game%20by%20%40herebefrogs%0A%0ATry%20to%20beat%20my%20score%3A%20${
               encodeURIComponent(location)
             }`,
           '_blank' 

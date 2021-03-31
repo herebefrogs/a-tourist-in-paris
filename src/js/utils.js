@@ -119,8 +119,8 @@ export function smoothLerpArray(values, t) {
   return lerp(min, max, delta);
 }
 
-function randChannel() {
-  return rand(1, 14).toString(16);
+function randChannel(min = 1, max = 14) {
+  return rand(min, max).toString(16);
 };
 
 export function randRGB() {
@@ -136,7 +136,7 @@ export function randG() {
 };
 
 export function randB() {
-  return `#00${randChannel()}`;
+  return `#00${randChannel(4, 15)}`;
 };
 
 export function loadImg(dataUri) {
