@@ -1,6 +1,5 @@
 import { isMobile } from './mobile';
 import { checkMonetization } from './monetization';
-import { save, load } from './storage';
 import { ALIGN_LEFT, ALIGN_CENTER, ALIGN_RIGHT, CHARSET_SIZE, initCharset, renderText } from './text';
 import { choice, getSeed, initRand, lerp, randRGB, randB, randG, randR } from './utils';
 
@@ -31,6 +30,7 @@ let winGame;
 let nbMonuments;
 let nbMonumentsSnapped;
 let webMonetizationEnabled = true;
+let controlKeys = 'wasd';
 
 // RENDER VARIABLES
 
@@ -579,7 +579,7 @@ function render() {
       renderText('list before their tour bus departs.', VIEWPORT_CTX, 16, 104);
 
       renderText('controls:', VIEWPORT_CTX, 16, 176);
-      renderText(isMobile ? 'swipe screen to move' : 'arrow keys or wasd to move.', VIEWPORT_CTX, VIEWPORT.width - 16, 200, ALIGN_RIGHT);
+      renderText(isMobile ? 'swipe screen to move' : `arrow keys or ${controlKeys} to move.`, VIEWPORT_CTX, VIEWPORT.width - 16, 200, ALIGN_RIGHT);
       renderText('goal:', VIEWPORT_CTX, 16, 248);
       renderText('touch all red blinking squares', VIEWPORT_CTX, VIEWPORT.width - 16, 272, ALIGN_RIGHT);
       renderText('then touch the blue square', VIEWPORT_CTX, VIEWPORT.width - 16, 296, ALIGN_RIGHT);
@@ -688,6 +688,10 @@ onload = async (e) => {
   colorGoalScreen = randRGB();
 
   await initCharset();
+
+  if (/^fr/i.test(navigator.language)) {
+    controlKeys = 'zqsd';
+  }
 
   toggleLoop(true);
 };
