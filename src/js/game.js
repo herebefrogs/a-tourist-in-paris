@@ -35,7 +35,7 @@ let entities;
 let winGame;
 let nbMonuments;
 let nbMonumentsSnapped;
-let webMonetizationEnabled = true;
+let webMonetizationEnabled = false;
 let controlKeys = 'wasd';
 
 // RENDER VARIABLES
