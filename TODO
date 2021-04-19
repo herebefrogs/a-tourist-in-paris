@@ -1,4 +1,5 @@
 game
 ====
 - improve map, making sure everything is always accessible (no bus or monument in an island)
+- add Google Analytics HASH + scores
 

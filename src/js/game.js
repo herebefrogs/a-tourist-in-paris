@@ -710,6 +710,10 @@ onload = async (e) => {
     controlKeys = 'zqsd';
   }
 
+  // itch.io hack to get key pressed recognized in their iframe
+  addEventListener('keydown', onkeydown);
+  addEventListener('keyup', onkeyup);
+
   toggleLoop(true);
 };
 
